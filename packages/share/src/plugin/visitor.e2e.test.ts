@@ -523,6 +523,12 @@ describe("authorizeVisit", () => {
       t.client.share.openLink({ token: link.token }),
     ).rejects.toMatchObject({ code: "SHARE_TARGET_UNAVAILABLE" });
     expect(onOpened).toHaveBeenCalledTimes(0);
+    // Refused before anything is counted.
+    const { link: closed } = await t.client.share.getLink(
+      { id: link.id },
+      t.as("1"),
+    );
+    expect(closed.viewCount).toBe(0);
   });
 
   it("waits for the password, and stops a proxy URL handed out before", async () => {

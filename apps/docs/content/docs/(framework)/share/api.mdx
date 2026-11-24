@@ -50,8 +50,10 @@ share({
 });
 ```
 
-It checks the call, not each row: a folder listing still shows a hidden
-subfolder by name, and opening that subfolder is refused.
+It checks the call, not each row: a folder listing or search still shows a
+hidden file or subfolder by name, and opening or downloading that one is
+refused. A presigned download URL handed out before it turned `false` works
+until it expires; a proxy URL stops at once.
 
 The hooks run after the action. A throw fails the call, so catch errors in
 an analytics hook. Their contexts never carry the password hash.
@@ -209,7 +211,8 @@ The plugin's context on the server (`SharePluginContext`).
 `useShareLinks(api.share, target, options?)` from `@dimah-s3/share/react`
 keeps the links of one object or folder in React state, for an owner screen.
 `react` is an optional peer of `@dimah-s3/share`, needed only for this entry.
-A `null` target waits.
+A `null` target waits, so a dialog can pass its target only while it is
+open.
 
 ```tsx
 "use client";
@@ -227,22 +230,71 @@ await create({ maxDownloads: 3 });
 | Option           | Type      | Default | Description                                                 |
 | ---------------- | --------- | ------- | ----------------------------------------------------------- |
 | `includeRevoked` | `boolean` | `false` | Also list revoked links, and keep a link once it is revoked |
-| `limit`          | `number`  | `100`   | Links per page                                              |
+| `limit`          | `number`  | `100`   | Links per page, 1 to 100                                    |
 
-| Property   | Type                                          | Description                                                 |
-| ---------- | --------------------------------------------- | ----------------------------------------------------------- |
-| `links`    | `ShareClientLink[]`                           | The target's links, newest first                            |
-| `status`   | `"idle" \| "loading" \| "success" \| "error"` | `idle` without a target                                     |
-| `error`    | `unknown`                                     | What the first page threw, while `status` is `error`        |
-| `hasMore`  | `boolean`                                     | Another page follows                                        |
-| `loadMore` | `() => Promise<void>`                         | Appends the next page                                       |
-| `refresh`  | `() => Promise<void>`                         | Loads the first page again                                  |
-| `create`   | `(settings?) => Promise<ShareClientLink>`     | Creates a link to the target and puts it first              |
-| `update`   | `(id, settings) => Promise<ShareClientLink>`  | Changes a link's settings                                   |
-| `revoke`   | `(id) => Promise<ShareClientLink>`            | Turns a link off; it leaves `links` unless `includeRevoked` |
+| Property        | Type                                                                          | Description                                                  |
+| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `target`        | `ShareTargetInput \| null`                                                    | The object or folder the links belong to                     |
+| `links`         | `readonly ShareClientLink[]`                                                  | The target's links, newest first                             |
+| `status`        | `"idle" \| "loading" \| "refreshing" \| "loading-more" \| "ready" \| "error"` | `idle` without a target, as in `useObjectList`               |
+| `error`         | `APIError \| null`                                                            | Why the last load failed, while `status` is `error`          |
+| `isLoading`     | `boolean`                                                                     | The first page is on its way, and there is nothing to show   |
+| `isRefreshing`  | `boolean`                                                                     | The first page loads again; `links` stay                     |
+| `isLoadingMore` | `boolean`                                                                     | The next page is on its way                                  |
+| `hasMore`       | `boolean`                                                                     | Another page follows                                         |
+| `loadMore`      | `() => Promise<void>`                                                         | Appends the next page; ignored while a load is on its way    |
+| `refresh`       | `() => Promise<void>`                                                         | Loads the first page again, keeping `links` until it arrives |
+| `retry`         | `() => Promise<void>`                                                         | Repeats the load that failed                                 |
+| `create`        | `(settings?) => Promise<ShareClientLink>`                                     | Creates a link to the target and puts it first               |
+| `update`        | `(id, settings) => Promise<ShareClientLink>`                                  | Changes a link's settings                                    |
+| `revoke`        | `(id) => Promise<ShareClientLink>`                                            | Turns a link off; it leaves `links` unless `includeRevoked`  |
 
-The mutations reject with the API error, such as `VALIDATION_ERROR`. The
-[`ShareLinkDialog`](/docs/ui/components/share-link-dialog) is built on it.
+A failed load never rejects: it sets `error`, and a failed next page keeps
+the links already loaded. `create`, `update`, and `revoke` reject with an
+`APIError`, such as `VALIDATION_ERROR`. The
+[`ShareLinkDialog`](/docs/ui/components/share-link-dialog) takes the hook's
+return.
+
+### useShareVisit()
+
+`useShareVisit(api.share, token, options?)` from `@dimah-s3/share/react`
+holds the page a link opens, for a visitor without a session: it opens the
+link, unlocks it with the password, and downloads its files. Pass `link` from
+a server [`openLink`](#s3share) to render at once.
+
+```tsx
+"use client";
+
+import { useShareVisit } from "@dimah-s3/share/react";
+
+const visit = useShareVisit(s3Client.share, token);
+
+if (visit.status === "locked") await visit.unlock(password);
+if (visit.status === "ready") await visit.download(fileId);
+```
+
+| Option | Type               | Default | Description                                         |
+| ------ | ------------------ | ------- | --------------------------------------------------- |
+| `link` | `ShareVisitorLink` | —       | The link from a server `openLink`, for this `token` |
+
+| Property   | Type                                                        | Description                                                     |
+| ---------- | ----------------------------------------------------------- | --------------------------------------------------------------- |
+| `status`   | `"loading" \| "locked" \| "ready" \| "error"`               | Where the visit stands                                          |
+| `link`     | `ShareVisitorLockedLink \| ShareVisitorOpenLink \| null`    | The locked link while `locked`, the opened one while `ready`    |
+| `error`    | `APIError \| null`                                          | Why the link does not open, while `status` is `error`           |
+| `token`    | `string`                                                    | The token the visit is for                                      |
+| `access`   | `string \| undefined`                                       | The password proof from `unlock`; every later call sends it     |
+| `unlock`   | `(password) => Promise<void>`                               | Trades the password for `access`, then opens the link again     |
+| `download` | `(id?, { disposition? }) => Promise<ShareDownloadResponse>` | Sends the browser to a file and updates `link.downloadsLeft`    |
+| `refresh`  | `() => void`                                                | Opens the link again, such as after a network error             |
+| `source`   | `ShareObjectSource`                                         | A read-only `useObjectList` source over the link, with `access` |
+
+`status` tells the rest apart, so `visit.link` is the opened link inside
+`if (visit.status === "ready")`. A call that finds the link gone, such as a
+download after the owner revoked it, moves the visit to `error`; one whose
+password proof expired moves it back to `locked`. `unlock` and `download`
+reject with an `APIError`, such as `SHARE_PASSWORD_INVALID`. The
+[`SharedView`](/docs/ui/components/shared-view) takes the hook's return.
 
 ### shareObjectSource()
 

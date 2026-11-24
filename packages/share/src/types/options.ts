@@ -159,6 +159,11 @@ export type ShareOptions = {
    * can only narrow access. `false` fails the call with
    * `SHARE_TARGET_UNAVAILABLE`, the same as a deleted target: use it for an
    * item your app hides without deleting it, such as one in its trash.
+   *
+   * It checks the call, not each row: a listing or a search of a shared
+   * folder still names a hidden file or subfolder inside it, and opening or
+   * downloading that one is refused. A presigned URL handed out before it
+   * turned `false` works until it expires; a proxy URL stops at once.
    */
   authorizeVisit?: (context: ShareVisitContext) => boolean | Promise<boolean>;
   /** After a link is created. */

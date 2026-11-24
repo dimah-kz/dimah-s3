@@ -10,3 +10,4 @@ packages:
 
 - **`useFormatError`.** Words it as "Too many requests. Try again later.", under the key `"Too many requests. Try again later.(API error)"`.
 - **Retries.** The React hooks that retry already treat any `429` as transient, whatever its code.
+- **Plugin codes.** A plugin that defines its own `TOO_MANY_REQUESTS` with `defineErrorCodes` now fails at `dimahS3()`, since the core catalog defines it. Throw the core entry instead.

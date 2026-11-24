@@ -3,6 +3,7 @@
 import {
   useEffect,
   useId,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -14,13 +15,8 @@ import {
   useFormatNumber,
   useObjectList,
 } from "@dimah-s3/react";
-import {
-  downloadSharedFile,
-  shareObjectSource,
-  type ShareAccess,
-  type ShareClientActions,
-  type ShareVisitorLink,
-} from "@dimah-s3/share/client";
+import type { ShareVisitorOpenLink } from "@dimah-s3/share/client";
+import type { UseShareVisitReturn } from "@dimah-s3/share/react";
 import { useTranslations } from "@fuma-translate/react";
 import {
   CircleAlertIcon,
@@ -33,6 +29,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
+  EmptyContent,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
@@ -54,32 +51,17 @@ import { ObjectListContent } from "@/components/dimah-s3/list/object-list-conten
 import { ObjectListHeader } from "@/components/dimah-s3/list/object-list-header";
 import { ObjectListSearch } from "@/components/dimah-s3/list/object-list-search";
 import { ObjectListSortMenu } from "@/components/dimah-s3/list/object-list-controls";
-
-/** The visitor actions {@link SharedView} calls: `api.share` from `shareClient()`. */
-export type SharedViewActions = Pick<
-  ShareClientActions,
-  "openLink" | "unlockLink" | "listShared" | "downloadShared"
->;
-
-/** A link that opened: its file or folder is known. */
-export type SharedViewLink = Extract<ShareVisitorLink, { locked: false }>;
+import { isolateText } from "@/lib/isolate-text";
 
 /** Props of {@link SharedView}. */
 export type SharedViewProps = {
-  /** `api.share` from a client with `shareClient()`. */
-  share: SharedViewActions;
-  /** The token from the page URL. */
-  token: string;
-  /**
-   * The link as `openLink` returned it on the server, so the page renders
-   * at once. Without it, the view opens the link itself.
-   */
-  link?: ShareVisitorLink;
+  /** `useShareVisit` from `@dimah-s3/share/react`, for the token in the page URL. */
+  visit: UseShareVisitReturn;
   /**
    * Above the file or folder, once the link opens. The default shows the
-   * name, the expiry, and the downloads left.
+   * name in an `h1`, the expiry, and the downloads left.
    */
-  header?: (link: SharedViewLink) => ReactNode;
+  header?: (link: ShareVisitorOpenLink) => ReactNode;
   /** The top of a shared folder in its breadcrumb. @default the folder's name */
   rootLabel?: string;
   /** Height of a shared folder's list. @default "32rem" */
@@ -92,16 +74,16 @@ export type SharedViewProps = {
  * one, then offers the shared file, or lists the shared folder in
  * `ObjectList` with search, sort, and a download per file. A link that
  * does not open says why, from its error code, through `useFormatError`.
+ * It takes `useShareVisit` from `@dimah-s3/share/react`.
  *
  * ```tsx
- * // app/s/[token]/page.tsx
- * <SharedView share={s3Client.share} token={token} />
+ * // app/s/[token]/shared-page.tsx
+ * const visit = useShareVisit(s3Client.share, token);
+ * return <SharedView visit={visit} />;
  * ```
  */
 export function SharedView({
-  share,
-  token,
-  link: initialLink,
+  visit,
   header,
   rootLabel,
   height = "32rem",
@@ -109,87 +91,125 @@ export function SharedView({
 }: SharedViewProps) {
   const t = useTranslations();
   const formatError = useFormatError();
-  const [access, setAccess] = useState<ShareAccess>();
-  const [opened, setOpened] = useState<{
-    token: string;
-    access: ShareAccess | undefined;
-    link?: ShareVisitorLink;
-    error?: unknown;
-  } | null>(
-    initialLink ? { token, access: undefined, link: initialLink } : null,
-  );
-  const [downloadError, setDownloadError] = useState<unknown>(null);
-
-  // Open the link, again once a password unlocks it.
-  const current =
-    opened !== null && opened.token === token && opened.access === access
-      ? opened
-      : null;
-  useEffect(() => {
-    if (current !== null) return;
-    let live = true;
-    share.openLink({ token, ...(access !== undefined && { access }) }).then(
-      ({ link }) => {
-        if (live) setOpened({ token, access, link });
-      },
-      (error: unknown) => {
-        if (live) setOpened({ token, access, error });
-      },
-    );
-    return () => {
-      live = false;
-    };
-  }, [current, share, token, access]);
-
   const shell = cn("flex w-full flex-col gap-4", className);
-  if (current === null) {
-    return (
-      <div data-slot="shared-view" className={shell} aria-busy>
-        <p className="flex items-center gap-2 text-sm text-dimah-s3-muted-foreground">
-          <Spinner aria-hidden aria-label={undefined} role={undefined} />
-          {t("Opening the link", { note: "shared view" })}
-        </p>
-      </div>
-    );
-  }
-  if (current.link === undefined) {
-    return (
-      <div data-slot="shared-view" className={shell}>
-        <Empty role="alert" className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <LinkIcon />
-            </EmptyMedia>
-            <EmptyTitle>{formatError(current.error)}</EmptyTitle>
-          </EmptyHeader>
-        </Empty>
-      </div>
-    );
-  }
-  const { link } = current;
-  if (link.locked) {
-    return (
-      <div data-slot="shared-view" className={shell}>
-        <PasswordForm share={share} token={token} onUnlock={setAccess} />
-      </div>
-    );
-  }
+  const shellRef = useRef<HTMLDivElement>(null);
+  // Set when the password was entered here, so focus moves to what opened.
+  const unlockedRef = useRef(false);
+  useEffect(() => {
+    if (visit.status !== "ready" || !unlockedRef.current) return;
+    unlockedRef.current = false;
+    shellRef.current?.focus();
+  }, [visit.status]);
 
-  const download = async (id: string | undefined) => {
+  switch (visit.status) {
+    case "loading":
+      return (
+        <div data-slot="shared-view" className={shell} aria-busy>
+          <p
+            role="status"
+            className="flex items-center gap-2 text-sm text-dimah-s3-muted-foreground"
+          >
+            <Spinner aria-hidden aria-label={undefined} role={undefined} />
+            {t("Opening the link", { note: "shared view" })}
+          </p>
+        </div>
+      );
+    case "error":
+      return (
+        <div data-slot="shared-view" className={shell}>
+          <Empty role="alert" className="border border-dimah-s3-border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <LinkIcon />
+              </EmptyMedia>
+              <EmptyTitle className="[overflow-wrap:anywhere]">
+                {formatError(visit.error)}
+              </EmptyTitle>
+            </EmptyHeader>
+            {/* A refusal stays; anything else, such as the network, may pass. */}
+            {visit.error.code.startsWith("SHARE_") ? null : (
+              <EmptyContent>
+                <Button variant="outline" onClick={visit.refresh}>
+                  {t("Try again", { note: "shared view" })}
+                </Button>
+              </EmptyContent>
+            )}
+          </Empty>
+        </div>
+      );
+    case "locked":
+      return (
+        <div data-slot="shared-view" className={shell}>
+          <PasswordForm
+            folder={visit.link.type === "folder"}
+            onUnlock={async (password) => {
+              unlockedRef.current = true;
+              try {
+                await visit.unlock(password);
+              } catch (error) {
+                unlockedRef.current = false;
+                throw error;
+              }
+            }}
+          />
+        </div>
+      );
+    case "ready":
+      return (
+        <div
+          ref={shellRef}
+          data-slot="shared-view"
+          // Takes focus once the password opened the link.
+          tabIndex={-1}
+          className={cn(shell, "outline-none")}
+        >
+          <SharedContent
+            visit={visit}
+            link={visit.link}
+            header={header}
+            rootLabel={rootLabel}
+            height={height}
+          />
+        </div>
+      );
+  }
+}
+
+/** The opened link: its header, then the file or the folder. */
+function SharedContent({
+  visit,
+  link,
+  header,
+  rootLabel,
+  height,
+}: {
+  visit: UseShareVisitReturn;
+  link: ShareVisitorOpenLink;
+  header: SharedViewProps["header"];
+  rootLabel: string | undefined;
+  height: string;
+}) {
+  const formatError = useFormatError();
+  const [downloadError, setDownloadError] = useState<unknown>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const exhausted = link.downloadsLeft === 0;
+
+  /** Downloads one file; `key` names its button while it waits. */
+  async function download(key: string, id: string | undefined) {
+    if (downloading !== null) return;
+    setDownloading(key);
     setDownloadError(null);
     try {
-      const { downloadsLeft } = await downloadSharedFile(share, id, {
-        token,
-        ...(access !== undefined && { access }),
-      });
-      setOpened({ ...current, link: { ...link, downloadsLeft } });
+      await visit.download(id);
     } catch (error) {
       setDownloadError(error);
+    } finally {
+      setDownloading(null);
     }
-  };
+  }
 
   return (
-    <div data-slot="shared-view" className={shell}>
+    <>
       {header ? header(link) : <SharedViewHeader link={link} />}
       {downloadError != null ? (
         <Alert variant="destructive">
@@ -201,22 +221,27 @@ export function SharedView({
       ) : null}
       {link.type === "folder" ? (
         <SharedFolder
-          share={share}
-          token={token}
-          access={access}
+          visit={visit}
           rootLabel={rootLabel ?? link.folder.name}
           height={height}
-          onDownload={(id) => void download(id)}
+          exhausted={exhausted}
+          downloading={downloading}
+          onDownload={(id) => void download(id, id)}
         />
       ) : (
-        <SharedFile link={link} onDownload={() => download(undefined)} />
+        <SharedFile
+          link={link}
+          exhausted={exhausted}
+          pending={downloading !== null}
+          onDownload={() => void download("file", undefined)}
+        />
       )}
-    </div>
+    </>
   );
 }
 
 /** The default header: the name, then the expiry and the downloads left. */
-function SharedViewHeader({ link }: { link: SharedViewLink }) {
+function SharedViewHeader({ link }: { link: ShareVisitorOpenLink }) {
   const t = useTranslations();
   const formatDate = useFormatDate();
   const formatNumber = useFormatNumber();
@@ -227,24 +252,30 @@ function SharedViewHeader({ link }: { link: SharedViewLink }) {
       : t("Open until {date}", {
           note: "shared view",
           variables: {
-            date: formatDate(link.expiresAt, { dateStyle: "medium" }),
+            date: formatDate(link.expiresAt, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }),
           },
         }),
     link.downloadsLeft === null
       ? null
-      : link.downloadsLeft === 1
-        ? t("1 download left", { note: "shared view" })
-        : t("{count} downloads left", {
-            note: "shared view",
-            variables: { count: formatNumber(link.downloadsLeft) },
-          }),
+      : link.downloadsLeft === 0
+        ? t("No downloads left", { note: "shared view" })
+        : link.downloadsLeft === 1
+          ? t("1 download left", { note: "shared view" })
+          : t("{count} downloads left", {
+              note: "shared view",
+              variables: { count: formatNumber(link.downloadsLeft) },
+            }),
   ].filter((fact): fact is string => fact !== null);
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <h1 className="text-xl font-semibold tracking-tight [overflow-wrap:anywhere] text-dimah-s3-foreground">
         <bdi>{name}</bdi>
       </h1>
-      <p className="text-sm text-dimah-s3-muted-foreground">
+      {/* Read out when a download changes the count. */}
+      <p aria-live="polite" className="text-sm text-dimah-s3-muted-foreground">
         {[t("Shared with you", { note: "shared view" }), ...facts].join(" · ")}
       </p>
     </div>
@@ -252,17 +283,18 @@ function SharedViewHeader({ link }: { link: SharedViewLink }) {
 }
 
 function PasswordForm({
-  share,
-  token,
+  folder,
   onUnlock,
 }: {
-  share: SharedViewActions;
-  token: string;
-  onUnlock: (access: ShareAccess) => void;
+  /** The link shares a folder. */
+  folder: boolean;
+  /** Rejects when the password does not open the link. */
+  onUnlock: (password: string) => Promise<void>;
 }) {
   const t = useTranslations();
   const formatError = useFormatError();
   const id = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -273,11 +305,13 @@ function PasswordForm({
     setPending(true);
     setError(null);
     try {
-      const { access } = await share.unlockLink({ token, password });
-      onUnlock(access);
+      await onUnlock(password);
     } catch (caught) {
       setError(caught);
       setPending(false);
+      // Ready for the next try.
+      inputRef.current?.focus();
+      inputRef.current?.select();
     }
   }
 
@@ -289,9 +323,12 @@ function PasswordForm({
       <Field data-invalid={error != null || undefined}>
         <FieldLabel htmlFor={`${id}-password`}>
           <LockIcon aria-hidden className="size-4" />
-          {t("This link needs a password", { note: "shared view" })}
+          {folder
+            ? t("This folder needs a password", { note: "shared view" })
+            : t("This file needs a password", { note: "shared view" })}
         </FieldLabel>
         <Input
+          ref={inputRef}
           id={`${id}-password`}
           type="password"
           autoComplete="current-password"
@@ -306,13 +343,16 @@ function PasswordForm({
           }}
         />
         {error != null ? (
-          <FieldError id={`${id}-error`}>{formatError(error)}</FieldError>
+          <FieldError id={`${id}-error`} className="[overflow-wrap:anywhere]">
+            {formatError(error)}
+          </FieldError>
         ) : null}
       </Field>
       <Button
         type="submit"
-        className="self-start pointer-coarse:h-10"
+        className="self-start pointer-coarse:h-10 data-disabled:opacity-50"
         disabled={pending}
+        focusableWhenDisabled
         aria-busy={pending || undefined}
       >
         {pending ? (
@@ -332,18 +372,20 @@ function PasswordForm({
 /** The one file of an object link, with its download button. */
 function SharedFile({
   link,
+  exhausted,
+  pending,
   onDownload,
 }: {
-  link: Extract<SharedViewLink, { type: "object" }>;
-  onDownload: () => Promise<void>;
+  link: Extract<ShareVisitorOpenLink, { type: "object" }>;
+  exhausted: boolean;
+  pending: boolean;
+  onDownload: () => void;
 }) {
   const t = useTranslations();
   const formatFileSize = useFormatFileSize();
-  const [pending, setPending] = useState(false);
   const { object } = link;
-  const exhausted = link.downloadsLeft === 0;
   return (
-    <Item variant="outline">
+    <Item variant="outline" className="border-dimah-s3-border">
       <ItemMedia className="size-10">
         <FileTypeGlyph
           fileName={object.name}
@@ -364,12 +406,10 @@ function SharedFile({
       <ItemActions>
         <Button
           disabled={pending || exhausted}
+          focusableWhenDisabled
           aria-busy={pending || undefined}
-          className="pointer-coarse:h-10"
-          onClick={() => {
-            setPending(true);
-            void onDownload().finally(() => setPending(false));
-          }}
+          className="pointer-coarse:h-10 data-disabled:opacity-50"
+          onClick={onDownload}
         >
           {pending ? (
             <Spinner
@@ -390,27 +430,25 @@ function SharedFile({
 
 /** A shared folder in a read-only `ObjectList`, with a download per file. */
 function SharedFolder({
-  share,
-  token,
-  access,
+  visit,
   rootLabel,
   height,
+  exhausted,
+  downloading,
   onDownload,
 }: {
-  share: SharedViewActions;
-  token: string;
-  access: ShareAccess | undefined;
+  visit: UseShareVisitReturn;
   rootLabel: string;
   height: string;
+  exhausted: boolean;
+  /** The file whose download is on its way. */
+  downloading: string | null;
   onDownload: (id: string) => void;
 }) {
   const t = useTranslations();
   const list = useObjectList({
-    ...shareObjectSource(share, {
-      token,
-      ...(access !== undefined && { access }),
-    }),
-    queryKey: ["dimah-s3-share", token, access ?? ""],
+    ...visit.source,
+    queryKey: ["dimah-s3-share", visit.token, visit.access ?? ""],
   });
   return (
     <ObjectList
@@ -422,13 +460,21 @@ function SharedFolder({
           <Button
             variant="ghost"
             size="icon-sm"
+            disabled={exhausted || downloading !== null}
+            focusableWhenDisabled
+            className="data-disabled:opacity-50"
+            aria-busy={downloading === entry.id || undefined}
             aria-label={t('Download "{name}"', {
               note: "shared view",
-              variables: { name: entry.name },
+              variables: { name: isolateText(entry.name) },
             })}
             onClick={() => onDownload(entry.id)}
           >
-            <DownloadIcon />
+            {downloading === entry.id ? (
+              <Spinner aria-hidden aria-label={undefined} role={undefined} />
+            ) : (
+              <DownloadIcon />
+            )}
           </Button>
         ) : null
       }

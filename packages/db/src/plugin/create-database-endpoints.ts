@@ -464,11 +464,17 @@ export function createDatabaseEndpoints<
           ...(ctx.body.name !== undefined && { name: ctx.body.name }),
           ...(ctx.body.parentId !== undefined && { parentId }),
         });
-        await hooks.onFolderUpdated?.({
-          ...scope,
-          before: current,
-          after: folder,
-        });
+        // A call that changes nothing saves nothing, and says nothing.
+        if (
+          folder.path !== current.path ||
+          folder.parentId !== current.parentId
+        ) {
+          await hooks.onFolderUpdated?.({
+            ...scope,
+            before: current,
+            after: folder,
+          });
+        }
         return { folder: toDbClientFolder(folder) };
       },
     ),

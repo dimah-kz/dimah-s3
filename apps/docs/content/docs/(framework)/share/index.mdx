@@ -216,7 +216,9 @@ link whose file or folder was deleted has `target.available: false`.
 
 In React, [`useShareLinks`](/docs/share/api#usesharelinks) keeps one target's
 links in state, and [`ShareLinkDialog`](/docs/ui/components/share-link-dialog)
-is the owner's dialog built on it.
+is the owner's dialog that takes it. On the shared page,
+[`useShareVisit`](/docs/share/api#usesharevisit) does the same for a visitor,
+under [`SharedView`](/docs/ui/components/shared-view).
 
 On the server, `s3.share.api` runs the same actions with
 `{ request }`, and `s3.share.links` reads and revokes rows without

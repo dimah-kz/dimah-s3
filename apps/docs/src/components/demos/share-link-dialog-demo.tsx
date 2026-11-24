@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import type { ShareClientLink } from "@dimah-s3/share/client";
-import type { ShareLinksActions } from "@dimah-s3/share/react";
+import { useShareLinks, type ShareLinksActions } from "@dimah-s3/share/react";
 import { ShareLinkDialog } from "@dimah-s3/ui/share";
 import { Share2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const DAY = 86_400_000;
 const NAME = "Quarterly-report.pdf";
+const TARGET = { type: "object", key: "uploads/report.pdf" } as const;
 
 function demoLink(
   id: string,
@@ -115,6 +116,8 @@ function demoShare(): ShareLinksActions {
 export function ShareLinkDialogDemo() {
   const [share] = useState(demoShare);
   const [open, setOpen] = useState(false);
+  // The target only while open, so the links load each time it opens.
+  const links = useShareLinks(share, open ? TARGET : null);
   return (
     <div className="flex justify-center">
       <Button variant="outline" onClick={() => setOpen(true)}>
@@ -122,8 +125,7 @@ export function ShareLinkDialogDemo() {
         Share {NAME}
       </Button>
       <ShareLinkDialog
-        share={share}
-        target={{ type: "object", key: "uploads/report.pdf" }}
+        links={links}
         name={NAME}
         open={open}
         onOpenChange={setOpen}

@@ -21,6 +21,7 @@ import {
   ObjectListViewToggle,
   UploadTrigger,
 } from "@dimah-s3/ui";
+import { useShareLinks } from "@dimah-s3/share/react";
 import { ShareLinkDialog, shareTargetOf } from "@dimah-s3/ui/share";
 import { Share2 } from "lucide-react";
 import { useState } from "react";
@@ -35,6 +36,11 @@ import { s3Client } from "@/lib/s3-client";
 export function FileManager() {
   const api = s3Client.useApi();
   const [sharing, setSharing] = useState<ObjectListEntry<DbClientObject>>();
+  // The row's links, loaded each time its dialog opens.
+  const links = useShareLinks(
+    api.share,
+    sharing ? shareTargetOf(sharing) : null,
+  );
   const list = useObjectList({
     ...dbObjectSource(api.db, { route: "files" }),
     queryKey: ["files"],
@@ -77,8 +83,7 @@ export function FileManager() {
         <ObjectListContent />
       </ObjectList>
       <ShareLinkDialog
-        share={api.share}
-        target={sharing ? shareTargetOf(sharing) : null}
+        links={links}
         name={sharing?.name}
         open={sharing !== undefined}
         onOpenChange={(open) => {

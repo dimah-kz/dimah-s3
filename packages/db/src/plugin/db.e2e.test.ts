@@ -126,6 +126,12 @@ describe("db() through the test kit", () => {
         }),
       }),
     );
+    // The same name and parent change nothing, and run nothing.
+    await client.db.updateFolder(
+      { id: drawings.id, name: "plans", parentId: docs.id },
+      asUser("1"),
+    );
+    expect(onFolderUpdated).toHaveBeenCalledTimes(1);
 
     const { key } = await upload(
       { route: "uploads", name: "a.txt", type: "text/plain", body: "hello" },

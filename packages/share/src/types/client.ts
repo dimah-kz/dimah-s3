@@ -158,14 +158,16 @@ type ShareVisitorLinkBase = {
 };
 
 /**
- * Response link of `openLink`. A locked link (`locked: true`) waits for
- * `unlockLink` and says nothing about what it shares.
+ * A link that waits for `unlockLink`. It says nothing about what it
+ * shares, only whether that is a file or a folder.
  */
-export type ShareVisitorLink =
-  | (ShareVisitorLinkBase & {
-      type: "object" | "folder";
-      locked: true;
-    })
+export type ShareVisitorLockedLink = ShareVisitorLinkBase & {
+  type: "object" | "folder";
+  locked: true;
+};
+
+/** A link that opened: its file, or its folder. */
+export type ShareVisitorOpenLink =
   | (ShareVisitorLinkBase & {
       type: "object";
       locked: false;
@@ -176,6 +178,12 @@ export type ShareVisitorLink =
       locked: false;
       folder: ShareVisitorFolder;
     });
+
+/**
+ * Response link of `openLink`. A locked link (`locked: true`) waits for
+ * `unlockLink` and says nothing about what it shares.
+ */
+export type ShareVisitorLink = ShareVisitorLockedLink | ShareVisitorOpenLink;
 
 /** Response of `openLink`. */
 export type ShareOpenLinkResponse = { link: ShareVisitorLink };

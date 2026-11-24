@@ -45,6 +45,8 @@ export type Translations = {
   "Copy link(object list menu)": string;
   "Copy link(share link dialog)": string;
   "Could not copy link(object list menu)": string;
+  "Could not copy the link(share link dialog)": string;
+  "Could not copy the link. Select it and copy it yourself.(share link dialog)": string;
   "Could not create link(object list menu)": string;
   "Could not delete \"{name}\"(toast)": string;
   "Could not delete {count} files(toast)": string;
@@ -148,8 +150,13 @@ export type Translations = {
   "Large uploads are disabled(API error)": string;
   "Last opened {date}(share link facts)": string;
   "Limit reached(share link status)": string;
+  "Link changed(share link dialog)": string;
   "Link copied(object list menu)": string;
+  "Link copied(share link dialog)": string;
+  "Link created and copied(share link dialog)": string;
+  "Link created(share link dialog)": string;
   "Link not found(API error)": string;
+  "Link turned off(share link dialog)": string;
   "Links ({count})(share link dialog)": string;
   "Links(share link dialog)": string;
   "List view(object list)": string;
@@ -173,7 +180,9 @@ export type Translations = {
   "Network error(API error)": string;
   "Never expires(share link expiry)": string;
   "New folder(object list)": string;
+  "New link(share link dialog)": string;
   "New password(share link field)": string;
+  "No downloads left(shared view)": string;
   "No folders here(object list move)": string;
   "No limit(share link field)": string;
   "No links yet.(share link dialog)": string;
@@ -243,10 +252,11 @@ export type Translations = {
   "These files cannot be uploaded(object list)": string;
   "This action cannot be undone.(dialog description)": string;
   "This feature is disabled(API error)": string;
+  "This file needs a password(shared view)": string;
   "This folder is empty(object list)": string;
+  "This folder needs a password(shared view)": string;
   "This link has expired(API error)": string;
   "This link needs a password(API error)": string;
-  "This link needs a password(shared view)": string;
   "This link reached its download limit(API error)": string;
   "This link was turned off(API error)": string;
   "This link works while you can access this file.(share link)": string;
@@ -255,6 +265,7 @@ export type Translations = {
   "Too many requests. Try again later.(API error)": string;
   "Try again(object list move)": string;
   "Try again(share link dialog)": string;
+  "Try again(shared view)": string;
   "Turn off link(share link dialog)": string;
   "Turn off this link?(share link dialog)": string;
   "Turn off(share link dialog)": string;

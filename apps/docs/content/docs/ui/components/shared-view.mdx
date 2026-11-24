@@ -27,6 +27,7 @@ npm i @dimah-s3/share
 ```
 
 ```tsx
+import { useShareVisit } from "@dimah-s3/share/react";
 import { SharedView } from "@dimah-s3/ui/share";
 ```
 
@@ -47,8 +48,9 @@ renders, and installs `@dimah-s3/share`.
 
 ## Usage
 
-Render it on the page `share({ url })` points at, with the token from the
-URL:
+Render it on the page `share({ url })` points at. It takes
+[`useShareVisit`](/docs/share/api#usesharevisit) for the token in the URL, as
+`ObjectList` takes `useObjectList`:
 
 ```tsx title="app/s/[token]/page.tsx"
 import { SharedPage } from "./shared-page";
@@ -66,11 +68,20 @@ export default async function Page({
 ```tsx title="app/s/[token]/shared-page.tsx"
 "use client";
 
+import type { ShareVisitorLink } from "@dimah-s3/share/client";
+import { useShareVisit } from "@dimah-s3/share/react";
 import { SharedView } from "@dimah-s3/ui/share";
 import { s3Client } from "@/lib/s3-client";
 
-export function SharedPage({ token }: { token: string }) {
-  return <SharedView share={s3Client.share} token={token} />;
+export function SharedPage({
+  token,
+  link,
+}: {
+  token: string;
+  link?: ShareVisitorLink;
+}) {
+  const visit = useShareVisit(s3Client.share, token, { link });
+  return <SharedView visit={visit} />;
 }
 ```
 
@@ -79,8 +90,8 @@ with [`isSharePublicAction`](/docs/share#let-visitors-through-your-guard-step).
 
 ## Open the link on the server
 
-Pass `link` from `s3.share.api.openLink` to render the file or folder
-without a round trip. A locked link still shows the password form.
+Pass `link` from `s3.share.api.openLink` to `useShareVisit` to render the file
+or folder without a round trip. A locked link still shows the password form.
 
 ```tsx title="app/s/[token]/page.tsx"
 import { getS3 } from "@/lib/s3";
@@ -97,8 +108,7 @@ who sent the link:
 
 ```tsx
 <SharedView
-  share={s3Client.share}
-  token={token}
+  visit={visit}
   header={(link) => (
     <h1>{link.type === "folder" ? link.folder.name : link.object.name}</h1>
   )}
@@ -109,25 +119,30 @@ who sent the link:
 
 Every refusal reads through [`useFormatError`](/docs/react/helpers#errors), so
 `SHARE_LINK_EXPIRED` reads "This link has expired", in your
-[translations](/docs/i18n). A download the link refuses, such as one past its
-limit, shows above the file.
+[translations](/docs/i18n). A link that stops opening while the page is open,
+such as one revoked or out of downloads, turns into that message on the next
+download or listing. One whose password proof expired asks for the password
+again. Any other refused download, such as `TOO_MANY_REQUESTS`, shows above
+the file, and a network error offers **Try again**.
 
 ## Accessibility
 
-- The password field is labelled "This link needs a password", and a wrong
-  password is announced with `role="alert"`.
-- Each file's download button in a folder is named after the file.
+- The password field is labelled "This file needs a password" or "This folder
+  needs a password". A wrong password is announced with `role="alert"`, and
+  focus returns to the field with the text selected.
+- Once the password opens the link, focus moves to what it opened.
+- Each file's download button in a folder is named after the file, and is
+  busy while its download starts.
+- The downloads left are read out when a download changes them.
 
 ## API Reference
 
 ### SharedView
 
-| Prop        | Type                                  | Default           | Description                                     |
-| ----------- | ------------------------------------- | ----------------- | ----------------------------------------------- |
-| `share`     | `SharedViewActions`                   | required          | `api.share` from a client with `shareClient()`  |
-| `token`     | `string`                              | required          | The token from the page URL                     |
-| `link`      | `ShareVisitorLink`                    | —                 | The link from a server `openLink`               |
-| `header`    | `(link: SharedViewLink) => ReactNode` | —                 | Replaces the default header once the link opens |
-| `rootLabel` | `string`                              | the folder's name | The top of a shared folder in its breadcrumb    |
-| `height`    | `string`                              | `"32rem"`         | Height of a shared folder's list                |
-| `className` | `string`                              | —                 | Classes on the outer element                    |
+| Prop        | Type                                        | Default           | Description                                     |
+| ----------- | ------------------------------------------- | ----------------- | ----------------------------------------------- |
+| `visit`     | `UseShareVisitReturn`                       | required          | `useShareVisit` for the token in the page URL   |
+| `header`    | `(link: ShareVisitorOpenLink) => ReactNode` | —                 | Replaces the default header once the link opens |
+| `rootLabel` | `string`                                    | the folder's name | The top of a shared folder in its breadcrumb    |
+| `height`    | `string`                                    | `"32rem"`         | Height of a shared folder's list                |
+| `className` | `string`                                    | —                 | Classes on the outer element                    |

@@ -7,7 +7,8 @@ import type {
   ShareVisitorFolder,
   ShareVisitorObject,
 } from "@dimah-s3/share/client";
-import { SharedView, type SharedViewActions } from "@dimah-s3/ui/share";
+import { useShareVisit, type ShareVisitorActions } from "@dimah-s3/share/react";
+import { SharedView } from "@dimah-s3/ui/share";
 
 const PASSWORD = "demo";
 const ROOT: ShareVisitorFolder = {
@@ -46,7 +47,7 @@ const FILES: ShareVisitorObject[] = [
 ];
 
 /** The visitor actions of one password-protected folder link, in memory. */
-function demoShare(): SharedViewActions {
+function demoShare(): ShareVisitorActions {
   let downloadsLeft = 10;
   const wait = () => new Promise((resolve) => setTimeout(resolve, 200));
   // Read in the calls, never while rendering.
@@ -102,12 +103,13 @@ function demoShare(): SharedViewActions {
 
 export function SharedViewDemo() {
   const [share] = useState(demoShare);
+  const visit = useShareVisit(share, "demo");
   return (
     <div id="shared-view-demo" className="flex w-full flex-col gap-3">
       <p className="text-sm text-fd-muted-foreground">
         The password is <code>{PASSWORD}</code>.
       </p>
-      <SharedView share={share} token="demo" height="20rem" />
+      <SharedView visit={visit} height="20rem" />
     </div>
   );
 }

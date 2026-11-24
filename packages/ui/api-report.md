@@ -1126,17 +1126,17 @@ export declare function ObjectImage({
 ```ts
 import { type ObjectListEntry } from "@dimah-s3/react";
 import type { ShareTargetInput } from "@dimah-s3/share/client";
-import { type ShareLinksActions } from "@dimah-s3/share/react";
+import type { UseShareLinksReturn } from "@dimah-s3/share/react";
 import { type ShareLinkFieldsOptions } from "./share-link-fields.js";
 export type ShareLinkDialogProps = {
-  share: ShareLinksActions;
-  target: ShareTargetInput | null;
+  links: UseShareLinksReturn;
   name?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   expiryOptions?: readonly (number | null)[];
   linkUrl?: (token: string) => string;
   fields?: ShareLinkFieldsOptions;
+  className?: string;
 };
 export declare function shareTargetOf<TItem>(
   entry: ObjectListEntry<TItem>,
@@ -1145,14 +1145,14 @@ export declare function shareTargetOf<TItem>(
   },
 ): ShareTargetInput;
 export declare function ShareLinkDialog({
-  share,
-  target,
+  links,
   name,
   open,
   onOpenChange,
   expiryOptions,
   linkUrl,
   fields,
+  className,
 }: ShareLinkDialogProps): import("react").JSX.Element;
 ```
 
@@ -1192,14 +1192,14 @@ export declare function ShareLinkFields({
   expiryOptions,
   fields,
   link,
-  disabled,
+  pending,
 }: {
   draft: ShareLinkDraft;
   onChange: (draft: ShareLinkDraft) => void;
   expiryOptions: readonly (number | null)[];
   fields?: ShareLinkFieldsOptions;
   link?: ShareClientLink;
-  disabled?: boolean;
+  pending?: boolean;
 }): import("react").JSX.Element;
 ```
 
@@ -1207,33 +1207,17 @@ export declare function ShareLinkFields({
 
 ```ts
 import { type ReactNode } from "react";
-import {
-  type ShareClientActions,
-  type ShareVisitorLink,
-} from "@dimah-s3/share/client";
-export type SharedViewActions = Pick<
-  ShareClientActions,
-  "openLink" | "unlockLink" | "listShared" | "downloadShared"
->;
-export type SharedViewLink = Extract<
-  ShareVisitorLink,
-  {
-    locked: false;
-  }
->;
+import type { ShareVisitorOpenLink } from "@dimah-s3/share/client";
+import type { UseShareVisitReturn } from "@dimah-s3/share/react";
 export type SharedViewProps = {
-  share: SharedViewActions;
-  token: string;
-  link?: ShareVisitorLink;
-  header?: (link: SharedViewLink) => ReactNode;
+  visit: UseShareVisitReturn;
+  header?: (link: ShareVisitorOpenLink) => ReactNode;
   rootLabel?: string;
   height?: string;
   className?: string;
 };
 export declare function SharedView({
-  share,
-  token,
-  link: initialLink,
+  visit,
   header,
   rootLabel,
   height,
@@ -1853,8 +1837,6 @@ export {
 } from "./components/dimah-s3/share/share-link-fields.js";
 export {
   SharedView,
-  type SharedViewActions,
-  type SharedViewLink,
   type SharedViewProps,
 } from "./components/dimah-s3/share/shared-view.js";
 ```

@@ -1,6 +1,7 @@
 /*
  * `@dimah-s3/ui/share`: the share link components. A separate entry, so the
- * main one never imports `@dimah-s3/share`, an optional peer.
+ * main one never imports `@dimah-s3/share`, an optional peer. They take the
+ * hooks of `@dimah-s3/share/react`: `useShareLinks` and `useShareVisit`.
  */
 export {
   ShareLinkDialog,
@@ -13,7 +14,5 @@ export {
 } from "@/components/dimah-s3/share/share-link-fields";
 export {
   SharedView,
-  type SharedViewActions,
-  type SharedViewLink,
   type SharedViewProps,
 } from "@/components/dimah-s3/share/shared-view";

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { s3Error } from "@dimah-s3/core";
 import type { ObjectListEntry } from "@dimah-s3/react";
 import type { ShareClientLink } from "@dimah-s3/share/client";
-import type { ShareLinksActions } from "@dimah-s3/share/react";
+import { useShareLinks, type ShareLinksActions } from "@dimah-s3/share/react";
 import { fireEvent, render, screen, waitFor, within } from "@/test/render";
 import {
   ShareLinkDialog,
@@ -72,16 +72,30 @@ afterEach(() => {
   Reflect.deleteProperty(navigator, "clipboard");
 });
 
-function renderDialog(share: ShareLinksActions) {
-  return render(
+/** The dialog over `useShareLinks`, as an app wires it. */
+function Harness({
+  share,
+  name = "a.txt",
+  linkUrl,
+}: {
+  share: ShareLinksActions;
+  name?: string;
+  linkUrl?: (token: string) => string;
+}) {
+  const links = useShareLinks(share, target);
+  return (
     <ShareLinkDialog
-      share={share}
-      target={target}
-      name="a.txt"
+      links={links}
+      name={name}
       open
       onOpenChange={() => {}}
-    />,
+      linkUrl={linkUrl}
+    />
   );
+}
+
+function renderDialog(share: ShareLinksActions) {
+  return render(<Harness share={share} />);
 }
 
 describe("ShareLinkDialog", () => {
@@ -147,6 +161,9 @@ describe("ShareLinkDialog", () => {
       new URL("/s/token-new", location.href).href,
     );
     expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe(
+      "Link created and copied",
+    );
     expect(screen.getByText("Client")).toBeTruthy();
     expect((screen.getByLabelText("Note") as HTMLInputElement).value).toBe("");
   });
@@ -179,25 +196,41 @@ describe("ShareLinkDialog", () => {
     fireEvent.click(within(row).getByRole("button", { name: "Save" }));
     await screen.findByText("New");
     expect(share.updateLink).toHaveBeenCalledWith({ id: "1", label: "New" });
+    // Saving closes the form and gives focus back to Change.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Change link" }),
+      ),
+    );
 
     // The confirmation is a stock AlertDialog.
     fireEvent.click(screen.getByRole("button", { name: "Turn off link" }));
     const confirm = await screen.findByRole("alertdialog", {
       name: "Turn off this link?",
     });
+    // Focus starts on Cancel, as in every destructive confirm.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(confirm).getByRole("button", { name: "Cancel" }),
+      ),
+    );
     fireEvent.click(within(confirm).getByRole("button", { name: "Turn off" }));
     await screen.findByText("No links yet.");
     expect(share.revokeLink).toHaveBeenCalledWith({ id: "1" });
+    // The row left, so focus lands on the list heading.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { name: "Links" }),
+      ),
+    );
+    expect(screen.getByRole("status").textContent).toBe("Link turned off");
   });
 
   it("copies with linkUrl when share() has no url", async () => {
     const share = fakeShare([link("1", { url: null })]);
     render(
-      <ShareLinkDialog
+      <Harness
         share={share}
-        target={target}
-        open
-        onOpenChange={() => {}}
         linkUrl={(token) => `https://files.test/s/${token}`}
       />,
     );
@@ -205,6 +238,41 @@ describe("ShareLinkDialog", () => {
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith("https://files.test/s/token-1"),
     );
+  });
+
+  it("shows the URL and says when the copy failed", async () => {
+    const share = fakeShare([link("1")]);
+    writeText.mockRejectedValueOnce(new Error("denied"));
+    renderDialog(share);
+    const url = new URL("/s/token-1", location.href).href;
+    expect(await screen.findByText(url)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    expect(
+      await screen.findByText(
+        "Could not copy the link. Select it and copy it yourself.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe(
+      "Could not copy the link",
+    );
+  });
+
+  it("keeps the links when the next page fails, and tries again", async () => {
+    const share = fakeShare([]);
+    share.listLinks
+      .mockResolvedValueOnce({ links: [link("1")], nextCursor: "c2" })
+      .mockRejectedValueOnce(s3Error("NETWORK_ERROR"))
+      .mockResolvedValueOnce({ links: [link("2")], nextCursor: null });
+    renderDialog(share);
+    fireEvent.click(await screen.findByRole("button", { name: "Show more" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Network error");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    fireEvent.click(within(alert).getByRole("button", { name: "Try again" }));
+    await waitFor(() =>
+      expect(screen.getAllByRole("listitem")).toHaveLength(2),
+    );
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
 });
 

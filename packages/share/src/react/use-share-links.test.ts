@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { s3Error } from "@dimah-s3/core";
 import type {
   ShareClientLink,
   ShareListLinksInput,
@@ -70,7 +71,9 @@ describe("useShareLinks", () => {
 
     rerender({ target: file });
     expect(result.current.status).toBe("loading");
-    await waitFor(() => expect(result.current.status).toBe("success"));
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.target).toEqual(file);
+    await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current.links.map((row) => row.id)).toEqual(["1"]);
     expect(share.listLinks).toHaveBeenCalledWith(
       { target: file, includeRevoked: false, limit: 100 },
@@ -85,7 +88,7 @@ describe("useShareLinks", () => {
   it("creates, changes, and revokes links in place", async () => {
     const share = fakeShare({ "": [link("1")] });
     const { result } = renderHook(() => useShareLinks(share, file));
-    await waitFor(() => expect(result.current.status).toBe("success"));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
 
     await act(async () => {
       await result.current.create({ maxDownloads: 3 });
@@ -112,7 +115,7 @@ describe("useShareLinks", () => {
     const { result } = renderHook(() =>
       useShareLinks(share, file, { includeRevoked: true }),
     );
-    await waitFor(() => expect(result.current.status).toBe("success"));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
     await act(async () => {
       await result.current.revoke("1");
     });
@@ -125,20 +128,81 @@ describe("useShareLinks", () => {
     const share = fakeShare({ "": [link("1")], second: [link("2")] });
     const { result } = renderHook(() => useShareLinks(share, file));
     await waitFor(() => expect(result.current.hasMore).toBe(true));
-    await act(async () => {
-      await result.current.loadMore();
+
+    // A second loadMore while the first is on its way is ignored.
+    let first: Promise<void> = Promise.resolve();
+    act(() => {
+      first = result.current.loadMore();
+      void result.current.loadMore();
     });
+    expect(result.current.status).toBe("loading-more");
+    expect(result.current.isLoadingMore).toBe(true);
+    await act(async () => {
+      await first;
+    });
+    expect(share.listLinks).toHaveBeenCalledTimes(2);
     expect(result.current.links.map((row) => row.id)).toEqual(["1", "2"]);
     expect(result.current.hasMore).toBe(false);
 
-    const failure = new Error("offline");
-    share.listLinks.mockRejectedValueOnce(failure);
+    // A failed reload keeps the rows and says why, as an APIError.
+    share.listLinks.mockRejectedValueOnce(new Error("offline"));
     await act(async () => {
       await result.current.refresh();
     });
     expect(result.current.status).toBe("error");
+    expect(result.current.error?.code).toBe("UNKNOWN_ERROR");
+    expect(result.current.links.map((row) => row.id)).toEqual(["1", "2"]);
+
+    await act(async () => {
+      await result.current.retry();
+    });
+    expect(result.current.status).toBe("ready");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("keeps the loaded links when the next page fails, and retries it", async () => {
+    const share = fakeShare({ "": [link("1")], second: [link("2")] });
+    const { result } = renderHook(() => useShareLinks(share, file));
+    await waitFor(() => expect(result.current.hasMore).toBe(true));
+
+    const failure = s3Error("NETWORK_ERROR");
+    share.listLinks.mockRejectedValueOnce(failure);
+    await act(async () => {
+      await result.current.loadMore();
+    });
+    expect(result.current.status).toBe("error");
     expect(result.current.error).toBe(failure);
+    expect(result.current.links.map((row) => row.id)).toEqual(["1"]);
+    expect(result.current.hasMore).toBe(true);
+
+    await act(async () => {
+      await result.current.retry();
+    });
+    expect(share.listLinks).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: "second" }),
+      expect.anything(),
+    );
+    expect(result.current.links.map((row) => row.id)).toEqual(["1", "2"]);
+  });
+
+  it("shows nothing when the first page fails", async () => {
+    const share = fakeShare();
+    share.listLinks.mockRejectedValueOnce(s3Error("UNAUTHORIZED"));
+    const { result } = renderHook(() => useShareLinks(share, file));
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current.error?.code).toBe("UNAUTHORIZED");
     expect(result.current.links).toEqual([]);
+  });
+
+  it("rejects a failed change with an APIError and keeps the rows", async () => {
+    const share = fakeShare({ "": [link("1")] });
+    share.updateLink.mockRejectedValueOnce(new Error("boom"));
+    const { result } = renderHook(() => useShareLinks(share, file));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    await expect(
+      act(() => result.current.update("1", { label: "x" })),
+    ).rejects.toMatchObject({ code: "UNKNOWN_ERROR" });
+    expect(result.current.links.map((row) => row.id)).toEqual(["1"]);
   });
 
   it("drops the answer for a target it left", async () => {
@@ -155,8 +219,9 @@ describe("useShareLinks", () => {
         useShareLinks(share, target),
       { initialProps: { target: file as ShareTargetInput } },
     );
+    await waitFor(() => expect(share.listLinks).toHaveBeenCalledTimes(1));
     rerender({ target: { type: "folder", folderId: "f1" } });
-    await waitFor(() => expect(result.current.status).toBe("success"));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
     act(() => answer([link("stale")]));
     expect(result.current.links).toEqual([]);
   });

@@ -6,10 +6,8 @@ import type {
   ShareVisitorLink,
 } from "@dimah-s3/share/client";
 import { fireEvent, render, screen, waitFor } from "@/test/render";
-import {
-  SharedView,
-  type SharedViewActions,
-} from "@/components/dimah-s3/share/shared-view";
+import { useShareVisit, type ShareVisitorActions } from "@dimah-s3/share/react";
+import { SharedView } from "@/components/dimah-s3/share/shared-view";
 
 // jsdom has no scrolling; ObjectList scrolls a new folder to the top.
 Element.prototype.scrollTo ??= () => {};
@@ -74,7 +72,7 @@ function fakeShare() {
     })),
     listShared: vi.fn(async () => folderPage),
     downloadShared: vi.fn(async () => sent(1)),
-  } satisfies SharedViewActions;
+  } satisfies ShareVisitorActions;
 }
 
 const assign = vi.fn();
@@ -87,6 +85,18 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+/** The view over `useShareVisit`, as a page wires it. */
+function Harness({
+  share,
+  link,
+}: {
+  share: ShareVisitorActions;
+  link?: ShareVisitorLink;
+}) {
+  const visit = useShareVisit(share, "tok", { link });
+  return <SharedView visit={visit} />;
+}
 
 describe("SharedView", () => {
   it("asks for the password, then offers the file and counts down", async () => {
@@ -101,24 +111,32 @@ describe("SharedView", () => {
       },
     });
     share.unlockLink.mockRejectedValueOnce(s3Error("SHARE_PASSWORD_INVALID"));
-    render(<SharedView share={share} token="tok" />);
+    render(<Harness share={share} />);
 
-    const password = await screen.findByLabelText("This link needs a password");
+    const password = await screen.findByLabelText("This file needs a password");
     fireEvent.change(password, { target: { value: "nope" } });
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Wrong password",
     );
+    // Ready for the next try.
+    await waitFor(() => expect(document.activeElement).toBe(password));
 
     fireEvent.change(password, { target: { value: "open sesame" } });
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
     expect(
       await screen.findByRole("heading", { name: "report.pdf" }),
     ).toBeTruthy();
-    expect(share.openLink).toHaveBeenLastCalledWith({
-      token: "tok",
-      access: "proof",
-    });
+    expect(share.openLink).toHaveBeenLastCalledWith(
+      { token: "tok", access: "proof" },
+      expect.anything(),
+    );
+    // Focus moves from the gone form to what the link opened.
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute("data-slot")).toBe(
+        "shared-view",
+      ),
+    );
     expect(screen.getByText(/2 downloads left/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
@@ -133,19 +151,30 @@ describe("SharedView", () => {
   it("says why a link does not open", async () => {
     const share = fakeShare();
     share.openLink.mockRejectedValueOnce(s3Error("SHARE_LINK_EXPIRED"));
-    render(<SharedView share={share} token="tok" />);
+    render(<Harness share={share} />);
     expect((await screen.findByRole("alert")).textContent).toBe(
       "This link has expired",
     );
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
+  it("offers to try again after a network error", async () => {
+    const share = fakeShare();
+    share.openLink.mockRejectedValueOnce(s3Error("NETWORK_ERROR"));
+    render(<Harness share={share} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByRole("heading", { name: "report.pdf" }),
+    ).toBeTruthy();
   });
 
   it("lists a shared folder from a server-opened link", async () => {
     const share = fakeShare();
-    render(<SharedView share={share} token="tok" link={folderLink} />);
+    render(<Harness share={share} link={folderLink} />);
 
     expect(screen.getByRole("heading", { name: "Drawings" })).toBeTruthy();
     const download = await screen.findByRole("button", {
-      name: 'Download "plan.dwg"',
+      name: 'Download "⁨plan.dwg⁩"',
     });
     expect(share.openLink).not.toHaveBeenCalled();
     fireEvent.click(download);
@@ -159,11 +188,23 @@ describe("SharedView", () => {
 
   it("shows a download refusal above the file", async () => {
     const share = fakeShare();
+    share.downloadShared.mockRejectedValueOnce(s3Error("TOO_MANY_REQUESTS"));
+    render(<Harness share={share} link={fileLink} />);
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Too many requests. Try again later.",
+    );
+    expect(screen.getByRole("heading", { name: "report.pdf" })).toBeTruthy();
+  });
+
+  it("says why once a download finds the link used up", async () => {
+    const share = fakeShare();
     share.downloadShared.mockRejectedValueOnce(s3Error("SHARE_LINK_EXHAUSTED"));
-    render(<SharedView share={share} token="tok" link={{ ...fileLink }} />);
+    render(<Harness share={share} link={fileLink} />);
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     expect((await screen.findByRole("alert")).textContent).toBe(
       "This link reached its download limit",
     );
+    expect(screen.queryByRole("heading", { name: "report.pdf" })).toBeNull();
   });
 });

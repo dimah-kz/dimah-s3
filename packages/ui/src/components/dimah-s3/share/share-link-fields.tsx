@@ -3,7 +3,9 @@
 import { useCallback, useId } from "react";
 import { useFormatNumber } from "@dimah-s3/react";
 import {
+  SHARE_LABEL_MAX_LENGTH,
   SHARE_MAX_DOWNLOADS_LIMIT,
+  SHARE_PASSWORD_MAX_LENGTH,
   type ShareClientLink,
   type ShareLinkSettingsInput,
 } from "@dimah-s3/share/client";
@@ -140,7 +142,9 @@ export function useShareDurationLabel(): (seconds: number | null) => string {
 
 /**
  * The settings of a link: lifetime, password, download limit, and note.
- * For a new link, or, with `link`, for changing one. @internal
+ * For a new link, or, with `link`, for changing one. While `pending`, the
+ * text fields turn read-only rather than disabled, so the one that sent
+ * the form with Enter keeps focus. @internal
  */
 export function ShareLinkFields({
   draft,
@@ -148,7 +152,7 @@ export function ShareLinkFields({
   expiryOptions,
   fields = {},
   link,
-  disabled,
+  pending = false,
 }: {
   draft: ShareLinkDraft;
   onChange: (draft: ShareLinkDraft) => void;
@@ -156,7 +160,8 @@ export function ShareLinkFields({
   fields?: ShareLinkFieldsOptions;
   /** The link being changed. */
   link?: ShareClientLink;
-  disabled?: boolean;
+  /** True while the form is being sent. */
+  pending?: boolean;
 }) {
   const t = useTranslations();
   const duration = useShareDurationLabel();
@@ -189,7 +194,7 @@ export function ShareLinkFields({
         <Select
           items={expiryItems}
           value={draft.expiry}
-          disabled={disabled}
+          disabled={pending}
           onValueChange={(value) => {
             if (typeof value === "string") set({ expiry: value });
           }}
@@ -219,7 +224,7 @@ export function ShareLinkFields({
             max={SHARE_MAX_DOWNLOADS_LIMIT}
             step={1}
             value={draft.maxDownloads}
-            disabled={disabled}
+            readOnly={pending}
             placeholder={t("No limit", { note: "share link field" })}
             onChange={(event) => set({ maxDownloads: event.target.value })}
           />
@@ -236,8 +241,10 @@ export function ShareLinkFields({
             id={`${id}-password`}
             type="password"
             autoComplete="new-password"
+            maxLength={SHARE_PASSWORD_MAX_LENGTH}
             value={draft.password}
-            disabled={disabled || draft.removePassword}
+            readOnly={pending}
+            disabled={draft.removePassword}
             placeholder={
               hasPassword
                 ? t("Keep the current password", { note: "share link field" })
@@ -250,7 +257,7 @@ export function ShareLinkFields({
               <Checkbox
                 id={`${id}-remove-password`}
                 checked={draft.removePassword}
-                disabled={disabled}
+                disabled={pending}
                 onCheckedChange={(checked) =>
                   set({ removePassword: checked, password: "" })
                 }
@@ -273,10 +280,10 @@ export function ShareLinkFields({
           <Input
             id={`${id}-label`}
             type="text"
-            maxLength={255}
+            maxLength={SHARE_LABEL_MAX_LENGTH}
             autoComplete="off"
             value={draft.label}
-            disabled={disabled}
+            readOnly={pending}
             placeholder={t("Who the link is for", {
               note: "share link field",
             })}

@@ -7,7 +7,10 @@ A share link opens a page of your app, the one `share({ url })` points at.
 It reads the token from the URL and calls the visitor actions, which need no
 session. This guide builds it in the Next.js App Router.
 [`SharedView`](/docs/ui/components/shared-view) from `@dimah-s3/ui/share` is
-the same page as one component.
+the same page as one component, and
+[`useShareVisit`](/docs/share/api#usesharevisit) from `@dimah-s3/share/react`
+holds its state (opening, the password, downloads, and a link that stops
+opening) for markup of your own.
 
 ### Read the token [step]
 

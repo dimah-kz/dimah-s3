@@ -242,7 +242,7 @@ export type DbPluginOptions<
   onObjectUpdated?: DbHook<DbObjectUpdatedContext<TSession, TAttributes>>;
   /** After `POST /db/folder` created a folder. */
   onFolderCreated?: DbHook<DbFolderCreatedContext<TSession>>;
-  /** After `PATCH /db/folder` renamed or moved a folder. */
+  /** After `PATCH /db/folder` renamed or moved a folder. A call that changes nothing does not run it. */
   onFolderUpdated?: DbHook<DbFolderUpdatedContext<TSession>>;
   /** After `DELETE /db/folder` removed a folder. A missing folder does not run it. */
   onFolderDeleted?: DbHook<DbFolderDeletedContext<TSession>>;
