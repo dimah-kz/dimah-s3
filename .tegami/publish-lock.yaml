@@ -1,33 +1,59 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### Plugins built on db() reuse its checks\n\n`s3.db.access` runs the scope and ownership checks of the db endpoints for another plugin, so it needs no `resolveScope` of its own. [s3.db.access](https://s3.dimah.dev/docs/db/api#s3dbaccess).\n\n- **`s3.db.access`.** `scope(call, target)`, `object(call, target, ref)`, and `folder(call, target, folderId)` resolve the caller with your `resolveScope`, check that the target is theirs, and run your `authorize`.\n- **`operation: \"plugin\"`.** `ScopeOperation` has `plugin`, and `ScopeContext` a `plugin: { id, action }`, for those calls. An `authorize` with an exhaustive `switch` on `operation` needs a case for it.\n- **`s3.db.objects.findById(id)`.** Loads a row by its id.\n- **`DbEndpoints`.** Exported, so a module that exports a `dimahS3()` instance with `db()` can emit declarations.\n"
-    filename: 2026-11-24-db-access.md
+  - content: "---\npackages:\n  \"@dimah-s3/core\":\n    type: minor\n  \"@dimah-s3/react\":\n    type: minor\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### useFormatError words the share codes\n\nThe `SHARE_*` codes are in the core catalog, so `useFormatError` turns them into messages your `translations` can localize, like every other code. [Errors](https://s3.dimah.dev/docs/share/api#errors).\n\n- **`S3_ERROR_CODES`.** Adds `SHARE_LINK_NOT_FOUND`, `SHARE_LINK_EXPIRED`, `SHARE_LINK_REVOKED`, `SHARE_LINK_EXHAUSTED`, `SHARE_TARGET_UNAVAILABLE`, `SHARE_PASSWORD_REQUIRED`, `SHARE_PASSWORD_INVALID`, `SHARE_FOLDER_LINKS_DISABLED`, and `SHARE_DOWNLOAD_URL_INVALID`, with the statuses and messages they had.\n- **`useFormatError`.** A message for each, and a translation key for each, such as `\"This link has expired(API error)\"`.\n- **`SHARE_ERROR_CODES`.** Names the same core entries. `share()` and `shareClient()` no longer add their own `$ERROR_CODES`; the codes stay on `s3.$ERROR_CODES` and the client's through the core catalog. Keep every `@dimah-s3/*` package on the same version: an older `share()` next to this core fails at `dimahS3()` with a code the core catalog already defines.\n"
+    filename: 2026-11-24-share-error-catalog.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/server\":\n    type: minor\n---\n\n### Plugins send objects they authorized\n\nA plugin that grants access without a session, such as a share link, can send an object the way its route does, and sign the URL that carries the grant. [Plugins](https://s3.dimah.dev/docs/server/plugins#serving-objects-a-plugin-authorized).\n\n- **`env.download.presign(input)`.** A presigned GetObject for a route in presign mode, with the route's `inlineTypes` and `maxExpiresIn`. No guard or download hook runs.\n- **`env.download.serve(input, request)`.** The `GET /file` response for a route in proxy mode: Range, conditional headers, and the hardening headers.\n- **`env.tokens(purpose)`.** `sign(payload, { expiresIn })` and `verify(token)` with the instance secret, under a key derived for the plugin and the purpose.\n- **`env.url(path)`.** The URL of an API path, under `baseURL` when it is set.\n- **`PluginRoute.download`.** Adds `disposition`, the route's default, and `maxExpiresIn`, its URL lifetime cap. Cap a grant you sign by it.\n"
-    filename: 2026-11-24-plugin-downloads.md
+  - content: "---\npackages:\n  \"@dimah-s3/core\":\n    type: minor\n  \"@dimah-s3/react\":\n    type: minor\n---\n\n### A code for rate limits\n\n`TOO_MANY_REQUESTS` (`429`) is in the core catalog, for a guard that limits calls, such as `unlockLink` per IP: `throw s3Error(\"TOO_MANY_REQUESTS\")`. The library never sends it itself.\n\n- **`useFormatError`.** Words it as \"Too many requests. Try again later.\", under the key `\"Too many requests. Try again later.(API error)\"`.\n- **Retries.** The React hooks that retry already treat any `429` as transient, whatever its code.\n- **Plugin codes.** A plugin that defines its own `TOO_MANY_REQUESTS` with `defineErrorCodes` now fails at `dimahS3()`, since the core catalog defines it. Throw the core entry instead.\n"
+    filename: 2026-11-24-too-many-requests.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### Share links\n\n`@dimah-s3/share` is a new plugin on top of `db()`. `share()` gives an owner links to one object or one folder of their scope, and anyone who holds a link can open it, list the folder, and download files without a session. Setup and the public page: [Share Links](https://s3.dimah.dev/docs/share).\n\n- **Links.** `createLink`, `listLinks`, `getLink`, `updateLink`, and `revokeLink` on `api.share` (`shareClient()`) and `s3.share.api`. A link has an expiry, an optional password, an optional download limit, and a label, and reports its `status`, `downloadCount`, `viewCount`, and `lastAccessedAt`.\n- **Visitors.** `openLink`, `unlockLink`, `listShared`, and `downloadShared` take the link `token`. A password is checked once and traded for an `access` proof. Downloads follow the route: a presigned URL, or a signed `/share/file` URL in proxy mode.\n- **Policy.** `expiration: { default, max }`, `password: { required, minLength }`, `folders`, `downloadExpiresIn`, `unlockExpiresIn`, and `authorize`. db's `authorize` sees owner actions as `operation: \"plugin\"`.\n- **Hooks.** `onCreated`, `onUpdated`, `onRevoked`, `onOpened`, and `onDownloaded`.\n- **Guards.** `isSharePublicAction(context)` lets visitors through an instance guard that requires a session.\n- **ObjectList.** `shareObjectSource()` lists a shared folder in `ObjectList`, and `downloadSharedFile()` downloads one file.\n- **Server.** `s3.share.links` reads and revokes rows without guards, `s3.share.pruneLinks({ olderThan })` removes links revoked or expired before `olderThan` and links whose file or folder was deleted, and `s3.share.checkSchema()` fails fast.\n- **Table.** One `share_link` table, schema `1.0.0`, generated with `runCli` from `@dimah-s3/share/cli` or created with `migrate(client)`.\n- **Errors.** `SHARE_LINK_NOT_FOUND`, `SHARE_LINK_EXPIRED`, `SHARE_LINK_REVOKED`, `SHARE_LINK_EXHAUSTED`, `SHARE_TARGET_UNAVAILABLE`, `SHARE_PASSWORD_REQUIRED`, `SHARE_PASSWORD_INVALID`, `SHARE_FOLDER_LINKS_DISABLED`, and `SHARE_DOWNLOAD_URL_INVALID`.\n"
-    filename: 2026-11-24-share-links.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### Hooks after db endpoint changes\n\n`db()` runs a hook once a db endpoint saved its change, so an activity log, a cache, or a search index can follow renames, moves, and folders without wrapping the HTTP handler. [Change hooks](https://s3.dimah.dev/docs/db/lifecycle-hooks#change-hooks).\n\n- **`onObjectUpdated`.** After `PATCH /db/object` renamed, moved, or set the attributes of an object, with the row `before` and `after`.\n- **`onFolderCreated`, `onFolderUpdated`, `onFolderDeleted`.** After `POST`, `PATCH`, and `DELETE /db/folder`, with the `folder`, `before` and `after`, or `folder` and `recursive`. A `PATCH` that changes neither the name nor the parent does not run `onFolderUpdated`. Two `DELETE` calls at once for the same folder can each run `onFolderDeleted`.\n- **Contexts.** Each one is the caller's `ScopeContext` with its `scope`, so it has the `session`. `DbChangeContext`, `DbObjectUpdatedContext`, `DbFolderCreatedContext`, `DbFolderUpdatedContext`, `DbFolderDeletedContext`, and `DbHook` are exported.\n- **Scope.** They run for `dbClient()` calls; `s3.db.objects` and `s3.db.folders` do not run them. A throw fails the call, and the change stays.\n"
+    filename: 2026-11-24-db-change-hooks.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### Visitor calls can be refused per link and target\n\n`share({ authorizeVisit })` lets your app refuse a visitor call on a link that still opens, such as one whose file or folder sits in your app's trash. [Authorize and hooks](https://s3.dimah.dev/docs/share/api#authorize-and-hooks).\n\n- **`authorizeVisit(context)`.** Runs on `openLink` once the link is unlocked, and on `listShared`, `downloadShared`, and `sharedFile`, before anything is counted, listed, or sent. `false` fails the call with `SHARE_TARGET_UNAVAILABLE`, the same as a deleted target, and the link opens again once it returns `true`. It checks the call, not each row: a listing or search of a shared folder still names a hidden file or subfolder inside it, and opening or downloading that one is refused. A presigned URL handed out before it turned `false` works until it expires; a proxy URL stops at once.\n- **`ShareVisitContext`.** `action`, `link`, `target`, `request`, `locals`, the `folder` the call lists or that holds the file, and the `object` it reaches: the file it sends, or the file of an object link on `openLink` and `listShared`.\n- **`ShareVisitAction`.** The public actions that reach a target: every one but `unlockLink`.\n"
+    filename: 2026-11-24-share-authorize-visit.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### downloadSharedFile returns the download\n\n`downloadSharedFile` from `@dimah-s3/share/client` resolves with the `downloadShared` response, so the shared page can show the new `downloadsLeft` without another `openLink`.\n"
+    filename: 2026-11-24-share-download-result.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n  \"@dimah-s3/ui\":\n    type: minor\n---\n\n### Share link components\n\n`ShareLinkDialog` and `SharedView` from `@dimah-s3/ui/share` are the owner's share dialog and the page a link opens. Each takes a hook from `@dimah-s3/share/react`, as `ObjectList` takes `useObjectList`: `useShareLinks` for the dialog, `useShareVisit` for the page. [Share Link Dialog](https://s3.dimah.dev/docs/ui/components/share-link-dialog), [Shared View](https://s3.dimah.dev/docs/ui/components/shared-view), [hooks](https://s3.dimah.dev/docs/share/api#usesharelinks).\n\n- **`useShareLinks(api.share, target, options?)`.** The links of one object or folder in React state, with the `useObjectList` status: `idle`, `loading`, `refreshing`, `loading-more`, `ready`, or `error`, and `isLoading`, `isRefreshing`, `isLoadingMore`. `error` is an `APIError`. `loadMore`, `refresh`, and `retry` never reject; a failed next page keeps the loaded links. `create`, `update`, and `revoke` reject with an `APIError`. A `null` target waits.\n- **`useShareVisit(api.share, token, { link? })`.** The visitor's page: `status` is `loading`, `locked`, `ready`, or `error`, and tells `link` and `error` apart. `unlock(password)`, `download(id?)`, which updates `link.downloadsLeft`, `refresh()`, and `source`, a read-only `useObjectList` source with the password proof. A call that finds the link revoked, expired, out of downloads, or gone moves it to `error`; one whose proof expired moves it back to `locked`.\n- **`ShareLinkDialog`.** Takes `links` from `useShareLinks`. Creates a link with a lifetime from `expiryOptions`, an optional password, download limit, and note, and copies it; lists the target's links with their URL, status, downloads, and views; changes them and turns them off after an alert dialog. `linkUrl` builds a URL when `share()` has no `url`. It loads again when it opens on a target it already loaded, and announces each creation, copy, change, and turned-off link in a live region.\n- **`shareTargetOf(entry, { bucket? })`.** The share target of an `ObjectList` row.\n- **`SharedView`.** Takes `visit` from `useShareVisit`. The password form, the shared file with its download, or the shared folder in a read-only `ObjectList`; a refusal message through `useFormatError`, with Try again after a network error; and a header that counts the downloads left.\n- **Wire types.** `ShareVisitorLockedLink` and `ShareVisitorOpenLink` name the two kinds of `ShareVisitorLink`. `SHARE_PASSWORD_MAX_LENGTH` and `SHARE_LABEL_MAX_LENGTH` are exported from `@dimah-s3/share` and `@dimah-s3/share/client`.\n- **`@dimah-s3/ui/share`.** A separate entry, so the main `@dimah-s3/ui` entry never imports `@dimah-s3/share`, which is an optional peer of `@dimah-s3/ui`. `react` is an optional peer of `@dimah-s3/share`, for the `/react` entry only.\n- **Registry.** `npx shadcn@latest add @dimah-s3/share-link-dialog` and `@dimah-s3/shared-view`.\n"
+    filename: 2026-11-24-share-link-components.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### listLinks shows authorize what it lists\n\n`authorize` can tell a list of one file's or folder's links from a list of the whole scope, so a caller allowed to share in one folder no longer has to see every link of the scope. [Authorize and hooks](https://s3.dimah.dev/docs/share/api#authorize-and-hooks).\n\n- **`target` on `listLinks`.** A list filtered by `key` or `folderId` passes the object or folder to `authorize` as `target`. Without `target`, the call lists every link of the scope.\n- **db's `authorize`.** A filtered list runs it with the object or folder, as `createLink` does.\n- **A filter that names nothing of the caller's.** No active object at the key, or no folder with the id, in the caller's scope lists nothing, without calling `authorize`.\n"
+    filename: 2026-11-24-share-list-links-target.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: patch\n---\n\n### ObjectList draws stock shadcn primitives\n\n`ObjectList` builds on the shadcn primitives instead of its own markup. Its border colors stay `dimah-s3` tokens.\n\n- **Move dialog.** The shadcn `Dialog`, and its folder path the shadcn `Breadcrumb`.\n- **Fields.** Search, and the wide new folder field, are a shadcn `InputGroup` with their icon and buttons inside it; a rename in a row is one too, with Cancel inside. The other fields are the shadcn `Input`, labelled with `Label`.\n- **Search in.** The choice between the open folder and every folder is a shadcn `ToggleGroup`: two toggle buttons with `aria-pressed`, where it was a `radiogroup`. Arrow keys move focus; Enter or Space picks.\n- **Registry.** `npx shadcn@latest add @dimah-s3/object-list` also installs `dialog`, `input`, `input-group`, `label`, and `toggle-group`, and no longer lists `@base-ui/react` itself: the primitives bring it.\n- **Dark mode.** The fields take the stock input background, `dark:bg-input/30`.\n"
+    filename: 2026-11-24-object-list-stock-primitives.md
     v: 0.0.0
 core:packages:
   - id: npm:@dimah-s3/cli
     updated: true
-  - id: npm:@dimah-s3/core
-    updated: true
-  - id: npm:@dimah-s3/react
+  - changelogIds:
+      - 2026-11-24-share-error-catalog.md
+      - 2026-11-24-too-many-requests.md
+    id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-11-24-db-access.md
+      - 2026-11-24-db-change-hooks.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-11-24-plugin-downloads.md
-    id: npm:@dimah-s3/server
+      - 2026-11-24-share-error-catalog.md
+      - 2026-11-24-too-many-requests.md
+    id: npm:@dimah-s3/react
     updated: true
-  - id: npm:@dimah-s3/ui
+  - id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-11-24-share-links.md
+      - 2026-11-24-share-authorize-visit.md
+      - 2026-11-24-share-download-result.md
+      - 2026-11-24-share-error-catalog.md
+      - 2026-11-24-share-link-components.md
+      - 2026-11-24-share-list-links-target.md
     id: npm:@dimah-s3/share
+    updated: true
+  - changelogIds:
+      - 2026-11-24-object-list-stock-primitives.md
+      - 2026-11-24-share-link-components.md
+    id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - distTag: latest
@@ -35,12 +61,12 @@ npm:packages:
   - distTag: latest
     id: npm:@dimah-s3/core
   - distTag: latest
-    id: npm:@dimah-s3/react
-  - distTag: latest
     id: npm:@dimah-s3/db
+  - distTag: latest
+    id: npm:@dimah-s3/react
   - distTag: latest
     id: npm:@dimah-s3/server
   - distTag: latest
-    id: npm:@dimah-s3/ui
-  - distTag: latest
     id: npm:@dimah-s3/share
+  - distTag: latest
+    id: npm:@dimah-s3/ui
