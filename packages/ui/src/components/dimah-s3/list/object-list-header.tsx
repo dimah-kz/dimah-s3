@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { useDeleteContext } from "@/components/dimah-s3/delete/delete";
 import { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
@@ -592,16 +594,16 @@ function NewFolderForm({
           wide ? "w-full" : "gap-1",
         )}
       >
-        <label htmlFor={inputId} className="sr-only">
+        <Label htmlFor={inputId} className="sr-only">
           {label}
-        </label>
+        </Label>
         {wide ? (
           <FolderPlusIcon
             aria-hidden
             className="pointer-events-none absolute start-2.5 size-3.5 text-dimah-s3-muted-foreground"
           />
         ) : null}
-        <input
+        <Input
           ref={inputRef}
           id={inputId}
           value={name}

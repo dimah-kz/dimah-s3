@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
@@ -240,7 +241,7 @@ export function ObjectListSearch({
         aria-hidden
         className="pointer-events-none absolute start-2.5 size-3.5 text-dimah-s3-muted-foreground"
       />
-      <input
+      <Input
         ref={inputRef}
         type="search"
         value={value}

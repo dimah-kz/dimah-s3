@@ -1,0 +1,133 @@
+---
+title: Shared View
+description: The page a share link opens, with its password form, the shared file, or the shared folder.
+---
+
+import { SharedViewDemo } from "@/components/demos/shared-view-demo";
+
+Render the public page of a [share link](/docs/share) in one component.
+`SharedView` asks for the password when the link has one, then offers the
+shared file, or lists the shared folder in a read-only
+[`ObjectList`](/docs/ui/components/object-list) with search, sort, and a
+download per file. A link that does not open says why. To build the page
+yourself, follow [The shared page](/docs/share/visitor-page).
+
+<DemoPreview name="shared-view-demo.tsx">
+  <SharedViewDemo />
+</DemoPreview>
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```npm
+npm i @dimah-s3/share
+```
+
+```tsx
+import { SharedView } from "@dimah-s3/ui/share";
+```
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/shared-view
+```
+
+Adds `@/components/dimah-s3/share/shared-view` with the `ObjectList` files it
+renders, and installs `@dimah-s3/share`.
+
+</Tab>
+
+</Tabs>
+
+## Usage
+
+Render it on the page `share({ url })` points at, with the token from the
+URL:
+
+```tsx title="app/s/[token]/page.tsx"
+import { SharedPage } from "./shared-page";
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
+  const { token } = await params;
+  return <SharedPage token={token} />;
+}
+```
+
+```tsx title="app/s/[token]/shared-page.tsx"
+"use client";
+
+import { SharedView } from "@dimah-s3/ui/share";
+import { s3Client } from "@/lib/s3-client";
+
+export function SharedPage({ token }: { token: string }) {
+  return <SharedView share={s3Client.share} token={token} />;
+}
+```
+
+Visitors have no session: let the public share actions through your guard
+with [`isSharePublicAction`](/docs/share#let-visitors-through-your-guard-step).
+
+## Open the link on the server
+
+Pass `link` from `s3.share.api.openLink` to render the file or folder
+without a round trip. A locked link still shows the password form.
+
+```tsx title="app/s/[token]/page.tsx"
+import { getS3 } from "@/lib/s3";
+
+const { link } = await getS3().share.api.openLink({ token });
+return <SharedPage token={token} link={link} />;
+```
+
+## Header
+
+The default header shows the name, the expiry, and the downloads left, and
+counts down after each download. Pass `header` to render your own, such as
+who sent the link:
+
+```tsx
+<SharedView
+  share={s3Client.share}
+  token={token}
+  header={(link) => (
+    <h1>{link.type === "folder" ? link.folder.name : link.object.name}</h1>
+  )}
+/>
+```
+
+## Errors
+
+Every refusal reads through [`useFormatError`](/docs/react/helpers#errors), so
+`SHARE_LINK_EXPIRED` reads "This link has expired", in your
+[translations](/docs/i18n). A download the link refuses, such as one past its
+limit, shows above the file.
+
+## Accessibility
+
+- The password field is labelled "This link needs a password", and a wrong
+  password is announced with `role="alert"`.
+- Each file's download button in a folder is named after the file.
+
+## API Reference
+
+### SharedView
+
+| Prop        | Type                                  | Default           | Description                                     |
+| ----------- | ------------------------------------- | ----------------- | ----------------------------------------------- |
+| `share`     | `SharedViewActions`                   | required          | `api.share` from a client with `shareClient()`  |
+| `token`     | `string`                              | required          | The token from the page URL                     |
+| `link`      | `ShareVisitorLink`                    | —                 | The link from a server `openLink`               |
+| `header`    | `(link: SharedViewLink) => ReactNode` | —                 | Replaces the default header once the link opens |
+| `rootLabel` | `string`                              | the folder's name | The top of a shared folder in its breadcrumb    |
+| `height`    | `string`                              | `"32rem"`         | Height of a shared folder's list                |
+| `className` | `string`                              | —                 | Classes on the outer element                    |

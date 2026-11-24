@@ -204,6 +204,46 @@ The plugin's context on the server (`SharePluginContext`).
 | `pruneLinks`  | `(options: { olderThan: Date \| number }) => Promise<{ pruned; orphaned }>` | Removes links revoked or expired before `olderThan`, and links created before it whose target was deleted (`orphaned`). Reads every older live link |
 | `checkSchema` | `() => Promise<void>`                                                       | Throws unless the database is at share schema `1.0.0`. The first query runs it too                                                                  |
 
+### useShareLinks()
+
+`useShareLinks(api.share, target, options?)` from `@dimah-s3/share/react`
+keeps the links of one object or folder in React state, for an owner screen.
+`react` is an optional peer of `@dimah-s3/share`, needed only for this entry.
+A `null` target waits.
+
+```tsx
+"use client";
+
+import { useShareLinks } from "@dimah-s3/share/react";
+
+const api = s3Client.useApi();
+const { links, status, create, update, revoke } = useShareLinks(api.share, {
+  type: "object",
+  key,
+});
+await create({ maxDownloads: 3 });
+```
+
+| Option           | Type      | Default | Description                                                 |
+| ---------------- | --------- | ------- | ----------------------------------------------------------- |
+| `includeRevoked` | `boolean` | `false` | Also list revoked links, and keep a link once it is revoked |
+| `limit`          | `number`  | `100`   | Links per page                                              |
+
+| Property   | Type                                          | Description                                                 |
+| ---------- | --------------------------------------------- | ----------------------------------------------------------- |
+| `links`    | `ShareClientLink[]`                           | The target's links, newest first                            |
+| `status`   | `"idle" \| "loading" \| "success" \| "error"` | `idle` without a target                                     |
+| `error`    | `unknown`                                     | What the first page threw, while `status` is `error`        |
+| `hasMore`  | `boolean`                                     | Another page follows                                        |
+| `loadMore` | `() => Promise<void>`                         | Appends the next page                                       |
+| `refresh`  | `() => Promise<void>`                         | Loads the first page again                                  |
+| `create`   | `(settings?) => Promise<ShareClientLink>`     | Creates a link to the target and puts it first              |
+| `update`   | `(id, settings) => Promise<ShareClientLink>`  | Changes a link's settings                                   |
+| `revoke`   | `(id) => Promise<ShareClientLink>`            | Turns a link off; it leaves `links` unless `includeRevoked` |
+
+The mutations reject with the API error, such as `VALIDATION_ERROR`. The
+[`ShareLinkDialog`](/docs/ui/components/share-link-dialog) is built on it.
+
 ### shareObjectSource()
 
 `shareObjectSource(api.share, { token, access?, limit? })` from

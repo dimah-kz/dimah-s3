@@ -17,6 +17,8 @@ import { useTranslations } from "@fuma-translate/react";
 import { CheckIcon, XIcon } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { splitFileName } from "@/components/dimah-s3/attachment/file-name";
 import {
@@ -186,10 +188,10 @@ export function ObjectListRenameField<TItem>({
       onBlur={onBlur}
     >
       <div className="relative flex min-w-0 items-center">
-        <label htmlFor={inputId} className="sr-only">
+        <Label htmlFor={inputId} className="sr-only">
           {label}
-        </label>
-        <input
+        </Label>
+        <Input
           ref={inputRef}
           id={inputId}
           value={name}

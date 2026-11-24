@@ -831,8 +831,7 @@
         "@fuma-translate/react",
         "cn",
         "lucide-react",
-        "react-file-icon",
-        "@base-ui/react"
+        "react-file-icon"
       ],
       "cssVars": {
         "light": {
@@ -865,14 +864,400 @@
         "breadcrumb",
         "button",
         "checkbox",
+        "dialog",
         "dropdown-menu",
         "empty",
+        "input",
+        "label",
         "skeleton",
         "spinner",
         "toast",
         "tooltip"
       ],
       "files": [
+        {
+          "path": "src/components/dimah-s3/list/object-list.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-header.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-header.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-breadcrumb.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-breadcrumb.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-controls.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-controls.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-search.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-search.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-content.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-content.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-entry.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-entry.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-states.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-states.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-usage.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-usage.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-upload.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-upload.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-entry-menu.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-entry-menu.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-rename.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-rename.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-delete.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-delete.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-move.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-move.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-feedback.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-feedback.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-commands.ts",
+          "type": "registry:hook",
+          "target": "@components/dimah-s3/list/object-list-commands.ts"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-keyboard.ts",
+          "type": "registry:hook",
+          "target": "@components/dimah-s3/list/object-list-keyboard.ts"
+        },
+        {
+          "path": "src/hooks/use-share-expiry-label.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-share-expiry-label.ts"
+        },
+        {
+          "path": "src/hooks/use-in-view.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-in-view.ts"
+        },
+        {
+          "path": "src/components/dimah-s3/preview/object-image.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/preview/object-image.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/upload/upload.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-context.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-context.tsx"
+        },
+        {
+          "path": "src/lib/folder-upload.ts",
+          "type": "registry:lib",
+          "target": "@lib/folder-upload.ts"
+        },
+        {
+          "path": "src/components/dimah-s3/upload/upload-trigger.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload-trigger.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/upload/upload-dropzone.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload-dropzone.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/upload/upload-status.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload-status.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/upload/upload-file-list.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload-file-list.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/upload/upload-toasts.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload-toasts.tsx"
+        },
+        {
+          "path": "src/lib/toast-content.tsx",
+          "type": "registry:lib",
+          "target": "@lib/toast-content.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
+        },
+        {
+          "path": "src/hooks/use-paste-files.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-paste-files.ts"
+        },
+        {
+          "path": "src/hooks/use-own-drag.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-own-drag.ts"
+        },
+        {
+          "path": "src/lib/upload-hints.ts",
+          "type": "registry:lib",
+          "target": "@lib/upload-hints.ts"
+        },
+        {
+          "path": "src/lib/is-field-target.ts",
+          "type": "registry:lib",
+          "target": "@lib/is-field-target.ts"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/circle-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/circle-progress.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-type-glyph.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/folder-glyph.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/folder-glyph.tsx"
+        },
+        {
+          "path": "src/lib/attachment-layout.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-layout.ts"
+        },
+        {
+          "path": "src/hooks/use-toast-owner.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-toast-owner.ts"
+        },
+        {
+          "path": "src/components/dimah-s3/download/download.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/download/download.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/download/download-trigger.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/download/download-trigger.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/download/download-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/download/download-progress.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/download/download-toasts.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/download/download-toasts.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/delete/delete.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/delete/delete.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/delete/delete-trigger.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/delete/delete-trigger.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/delete/delete-confirm-dialog.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/delete/delete-confirm-dialog.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/delete/delete-toasts.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/delete/delete-toasts.tsx"
+        },
+        {
+          "path": "src/lib/isolate-text.ts",
+          "type": "registry:lib",
+          "target": "@lib/isolate-text.ts"
+        }
+      ]
+    },
+    {
+      "name": "share-link-dialog",
+      "type": "registry:component",
+      "title": "Share Link Dialog",
+      "description": "Owner dialog for the share links of one file or folder: create a link with a lifetime, password, download limit, and note, copy it, and change or turn off its links.",
+      "dependencies": [
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
+        "@fuma-translate/react",
+        "cn",
+        "lucide-react",
+        "@dimah-s3/share@^2.2.0"
+      ],
+      "cssVars": {
+        "light": {
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
+        },
+        "dark": {
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
+        },
+        "theme": {
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
+        }
+      },
+      "registryDependencies": [
+        "badge",
+        "button",
+        "checkbox",
+        "dialog",
+        "input",
+        "label",
+        "native-select",
+        "spinner"
+      ],
+      "files": [
+        {
+          "path": "src/components/dimah-s3/share/share-link-dialog.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/share/share-link-dialog.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/share/share-link-fields.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/share/share-link-fields.tsx"
+        },
+        {
+          "path": "src/lib/isolate-text.ts",
+          "type": "registry:lib",
+          "target": "@lib/isolate-text.ts"
+        }
+      ]
+    },
+    {
+      "name": "shared-view",
+      "type": "registry:component",
+      "title": "Shared View",
+      "description": "The page a share link opens: password form, the shared file with its download, or the shared folder in a read-only Object List, and a message for a link that does not open.",
+      "dependencies": [
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
+        "@fuma-translate/react",
+        "cn",
+        "lucide-react",
+        "react-file-icon",
+        "@dimah-s3/share@^2.2.0"
+      ],
+      "cssVars": {
+        "light": {
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
+        },
+        "dark": {
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
+        },
+        "theme": {
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
+        }
+      },
+      "devDependencies": ["@types/react-file-icon"],
+      "registryDependencies": [
+        "alert-dialog",
+        "attachment",
+        "breadcrumb",
+        "button",
+        "checkbox",
+        "dialog",
+        "dropdown-menu",
+        "empty",
+        "input",
+        "label",
+        "skeleton",
+        "spinner",
+        "toast",
+        "tooltip"
+      ],
+      "files": [
+        {
+          "path": "src/components/dimah-s3/share/shared-view.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/share/shared-view.tsx"
+        },
         {
           "path": "src/components/dimah-s3/list/object-list.tsx",
           "type": "registry:component",

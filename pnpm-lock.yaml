@@ -478,6 +478,9 @@ importers:
       '@dimah-s3/server':
         specifier: workspace:*
         version: link:../../packages/server
+      '@dimah-s3/share':
+        specifier: workspace:*
+        version: link:../../packages/share
       '@tailwindcss/postcss':
         specifier: 'catalog:'
         version: 4.3.5
@@ -1030,6 +1033,9 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.6.0
         version: 0.6.0
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
@@ -1060,9 +1066,18 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.15.0(jiti@2.7.0)
+      jsdom:
+        specifier: ^31.0.1
+        version: 31.0.1(@noble/hashes@2.4.0)
       kysely:
         specifier: ^0.29.9
         version: 0.29.9
+      react:
+        specifier: 'catalog:'
+        version: 19.3.1
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.1(react@19.3.1)
       tsc-alias:
         specifier: 'catalog:'
         version: 1.9.10
@@ -1091,6 +1106,9 @@ importers:
       '@dimah-s3/react':
         specifier: workspace:*
         version: link:../react
+      '@dimah-s3/share':
+        specifier: workspace:*
+        version: link:../share
       '@fuma-translate/react':
         specifier: ^1.0.2
         version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)

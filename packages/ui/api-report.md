@@ -3,6 +3,7 @@
 Generated from the built declarations by `pnpm api:report`. Do not edit it by hand. CI fails when a build differs from it, so review its diff as a change to the public API.
 
 - `@dimah-s3/ui`: `index.d.ts`
+- `@dimah-s3/ui/share`: `share.d.ts`
 
 ## `components/dimah-s3/attachment/attachment-parts.d.ts`
 
@@ -1120,6 +1121,126 @@ export declare function ObjectImage({
   | null;
 ```
 
+## `components/dimah-s3/share/share-link-dialog.d.ts`
+
+```ts
+import { type ObjectListEntry } from "@dimah-s3/react";
+import type { ShareTargetInput } from "@dimah-s3/share/client";
+import { type ShareLinksActions } from "@dimah-s3/share/react";
+import { type ShareLinkFieldsOptions } from "./share-link-fields.js";
+export type ShareLinkDialogProps = {
+  share: ShareLinksActions;
+  target: ShareTargetInput | null;
+  name?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  expiryOptions?: readonly (number | null)[];
+  linkUrl?: (token: string) => string;
+  fields?: ShareLinkFieldsOptions;
+};
+export declare function shareTargetOf<TItem>(
+  entry: ObjectListEntry<TItem>,
+  options?: {
+    bucket?: string;
+  },
+): ShareTargetInput;
+export declare function ShareLinkDialog({
+  share,
+  target,
+  name,
+  open,
+  onOpenChange,
+  expiryOptions,
+  linkUrl,
+  fields,
+}: ShareLinkDialogProps): import("react").JSX.Element;
+```
+
+## `components/dimah-s3/share/share-link-fields.d.ts`
+
+```ts
+import {
+  type ShareClientLink,
+  type ShareLinkSettingsInput,
+} from "@dimah-s3/share/client";
+export declare const DEFAULT_SHARE_EXPIRY_OPTIONS: readonly (number | null)[];
+export type ShareLinkFieldsOptions = {
+  password?: boolean;
+  maxDownloads?: boolean;
+  label?: boolean;
+};
+export type ShareLinkDraft = {
+  expiry: string;
+  password: string;
+  removePassword: boolean;
+  maxDownloads: string;
+  label: string;
+};
+export declare function newLinkDraft(): ShareLinkDraft;
+export declare function linkDraft(link: ShareClientLink): ShareLinkDraft;
+export declare function draftSettings(
+  draft: ShareLinkDraft,
+  expiryOptions: readonly (number | null)[],
+  link?: ShareClientLink,
+): ShareLinkSettingsInput;
+export declare function useShareDurationLabel(): (
+  seconds: number | null,
+) => string;
+export declare function ShareLinkFields({
+  draft,
+  onChange,
+  expiryOptions,
+  fields,
+  link,
+  disabled,
+}: {
+  draft: ShareLinkDraft;
+  onChange: (draft: ShareLinkDraft) => void;
+  expiryOptions: readonly (number | null)[];
+  fields?: ShareLinkFieldsOptions;
+  link?: ShareClientLink;
+  disabled?: boolean;
+}): import("react").JSX.Element;
+```
+
+## `components/dimah-s3/share/shared-view.d.ts`
+
+```ts
+import { type ReactNode } from "react";
+import {
+  type ShareClientActions,
+  type ShareVisitorLink,
+} from "@dimah-s3/share/client";
+export type SharedViewActions = Pick<
+  ShareClientActions,
+  "openLink" | "unlockLink" | "listShared" | "downloadShared"
+>;
+export type SharedViewLink = Extract<
+  ShareVisitorLink,
+  {
+    locked: false;
+  }
+>;
+export type SharedViewProps = {
+  share: SharedViewActions;
+  token: string;
+  link?: ShareVisitorLink;
+  header?: (link: SharedViewLink) => ReactNode;
+  rootLabel?: string;
+  height?: string;
+  className?: string;
+};
+export declare function SharedView({
+  share,
+  token,
+  link: initialLink,
+  header,
+  rootLabel,
+  height,
+  className,
+}: SharedViewProps): import("react").JSX.Element;
+```
+
 ## `components/dimah-s3/toast/toaster.d.ts`
 
 ```ts
@@ -1716,4 +1837,24 @@ export type UploadHints = {
   accept: string | null;
 };
 export declare function useUploadHints(policy: UploadHintsPolicy): UploadHints;
+```
+
+## `share.d.ts`
+
+```ts
+export {
+  ShareLinkDialog,
+  shareTargetOf,
+  type ShareLinkDialogProps,
+} from "./components/dimah-s3/share/share-link-dialog.js";
+export {
+  DEFAULT_SHARE_EXPIRY_OPTIONS,
+  type ShareLinkFieldsOptions,
+} from "./components/dimah-s3/share/share-link-fields.js";
+export {
+  SharedView,
+  type SharedViewActions,
+  type SharedViewLink,
+  type SharedViewProps,
+} from "./components/dimah-s3/share/shared-view.js";
 ```
