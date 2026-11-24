@@ -5,8 +5,10 @@ import {
   useId,
   useRef,
   useState,
+  type ChangeEvent,
   type FocusEvent,
   type FormEvent,
+  type KeyboardEvent,
 } from "react";
 import {
   useFormatError,
@@ -18,6 +20,11 @@ import { CheckIcon, XIcon } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { splitFileName } from "@/components/dimah-s3/attachment/file-name";
@@ -175,6 +182,27 @@ export function ObjectListRenameField<TItem>({
     void save(true);
   }
 
+  // The same field in either layout, in the text size of the name it replaces.
+  const inputProps = {
+    ref: inputRef,
+    id: inputId,
+    value: name,
+    maxLength: 255,
+    autoComplete: "off",
+    readOnly: pending,
+    "aria-invalid": error != null || undefined,
+    "aria-describedby": error != null ? errorId : undefined,
+    onChange: (event: ChangeEvent<HTMLInputElement>) => {
+      setName(event.target.value);
+      setError(null);
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== "Escape" || lock.current) return;
+      event.preventDefault();
+      finish(true);
+    },
+  };
+
   return (
     <form
       data-slot="object-list-rename"
@@ -187,39 +215,20 @@ export function ObjectListRenameField<TItem>({
       onSubmit={onSubmit}
       onBlur={onBlur}
     >
-      <div className="relative flex min-w-0 items-center">
+      <div className="flex min-w-0 items-center">
         <Label htmlFor={inputId} className="sr-only">
           {label}
         </Label>
-        <Input
-          ref={inputRef}
-          id={inputId}
-          value={name}
-          maxLength={255}
-          autoComplete="off"
-          readOnly={pending}
-          aria-invalid={error != null || undefined}
-          aria-describedby={error != null ? errorId : undefined}
-          className={cn(
-            // The same text size as the entry name it replaces.
-            "h-8 w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-sm text-dimah-s3-foreground outline-none focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 pointer-coarse:h-9",
-            // Room at the end for Cancel inside the field.
-            stacked ? "px-2" : "ps-2 pe-8 pointer-coarse:pe-9",
-          )}
-          onChange={(event) => {
-            setName(event.target.value);
-            setError(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape" || lock.current) return;
-            event.preventDefault();
-            finish(true);
-          }}
-        />
-        {stacked ? null : (
-          <div className="absolute inset-y-0 end-1 flex items-center">
-            {cancel}
-          </div>
+        {stacked ? (
+          <Input
+            {...inputProps}
+            className="h-8 border-dimah-s3-border px-2 text-sm pointer-coarse:h-9"
+          />
+        ) : (
+          <InputGroup className="h-8 border-dimah-s3-border pointer-coarse:h-9">
+            <InputGroupInput {...inputProps} className="ps-2 text-sm" />
+            <InputGroupAddon align="inline-end">{cancel}</InputGroupAddon>
+          </InputGroup>
         )}
       </div>
       {stacked ? (

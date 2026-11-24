@@ -257,6 +257,7 @@
     "Try again(object list move)",
     "Try again(share link dialog)",
     "Turn off link(share link dialog)",
+    "Turn off this link?(share link dialog)",
     "Turn off(share link dialog)",
     "Turned off(share link status)",
     "Unauthorized(API error)",

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -20,6 +21,14 @@ import {
 import { useTranslations } from "@fuma-translate/react";
 import { ChevronRightIcon, FolderInputIcon, HomeIcon } from "lucide-react";
 import { cn } from "cn";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -365,61 +374,54 @@ function MovePath({
   const t = useTranslations();
   const { rootLabel } = useObjectListContext();
   const crumb =
-    "flex min-w-0 max-w-40 items-center gap-1 rounded-sm px-1 outline-none hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:py-1.5";
+    "flex min-w-0 max-w-40 items-center gap-1 rounded-sm px-1 outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:py-1.5";
   return (
-    <nav aria-label={t("Folder path", { note: "object list" })}>
-      <ol className="flex min-w-0 flex-wrap items-center gap-1 text-sm text-dimah-s3-muted-foreground">
-        <li className="flex min-w-0 items-center">
+    <Breadcrumb aria-label={t("Folder path", { note: "object list" })}>
+      <BreadcrumbList className="min-w-0 gap-1 text-sm">
+        <BreadcrumbItem className="min-w-0">
           {trail.length === 0 ? (
-            <span
-              aria-current="page"
-              className="flex min-w-0 items-center gap-1 px-1 font-medium text-dimah-s3-foreground"
-            >
+            <BreadcrumbPage className="flex min-w-0 items-center gap-1 px-1 font-medium">
               <HomeIcon aria-hidden className="size-3.5 shrink-0" />
               <span className="truncate">{rootLabel}</span>
-            </span>
+            </BreadcrumbPage>
           ) : (
-            <button
-              type="button"
+            <BreadcrumbLink
               className={crumb}
+              render={<button type="button" />}
               onClick={() => onNavigate([])}
             >
               <HomeIcon aria-hidden className="size-3.5 shrink-0" />
               <span className="truncate">{rootLabel}</span>
-            </button>
+            </BreadcrumbLink>
           )}
-        </li>
+        </BreadcrumbItem>
         {trail.map((folder, index) => {
           const last = index === trail.length - 1;
           return (
-            <li key={folder.id} className="flex min-w-0 items-center gap-1">
-              <ChevronRightIcon
-                aria-hidden
-                className="size-3.5 shrink-0 rtl:rotate-180"
-              />
-              {last ? (
-                <span
-                  aria-current="page"
-                  className="truncate px-1 font-medium text-dimah-s3-foreground"
-                >
-                  <bdi>{folder.name}</bdi>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className={crumb}
-                  onClick={() => onNavigate(trail.slice(0, index + 1))}
-                >
-                  <span className="truncate">
+            <Fragment key={folder.id}>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem className="min-w-0">
+                {last ? (
+                  <BreadcrumbPage className="truncate px-1 font-medium">
                     <bdi>{folder.name}</bdi>
-                  </span>
-                </button>
-              )}
-            </li>
+                  </BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink
+                    className={crumb}
+                    render={<button type="button" />}
+                    onClick={() => onNavigate(trail.slice(0, index + 1))}
+                  >
+                    <span className="truncate">
+                      <bdi>{folder.name}</bdi>
+                    </span>
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
           );
         })}
-      </ol>
-    </nav>
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }
 

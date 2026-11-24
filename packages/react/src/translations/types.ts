@@ -256,6 +256,7 @@ export type Translations = {
   "Try again(object list move)": string;
   "Try again(share link dialog)": string;
   "Turn off link(share link dialog)": string;
+  "Turn off this link?(share link dialog)": string;
   "Turn off(share link dialog)": string;
   "Turned off(share link status)": string;
   "Unauthorized(API error)": string;

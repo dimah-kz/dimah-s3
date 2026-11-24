@@ -2382,9 +2382,9 @@ describe("ObjectList", () => {
         screen.getByText("Nothing in “docs” or its folders matches “a.t”."),
       ).toBeDefined();
       expect(
-        screen
-          .getByRole("radio", { name: "docs" })
-          .getAttribute("aria-checked"),
+        within(screen.getByRole("group", { name: "Search in" }))
+          .getByRole("button", { name: "docs" })
+          .getAttribute("aria-pressed"),
       ).toBe("true");
 
       await user.click(
@@ -2392,9 +2392,9 @@ describe("ObjectList", () => {
       );
       await settle();
       expect(
-        screen
-          .getByRole("radio", { name: "Files" })
-          .getAttribute("aria-checked"),
+        within(screen.getByRole("group", { name: "Search in" }))
+          .getByRole("button", { name: "Files" })
+          .getAttribute("aria-pressed"),
       ).toBe("true");
       expect(
         entry("a.txt").querySelector("[data-slot=object-list-location]")

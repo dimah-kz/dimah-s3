@@ -24,8 +24,14 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Tooltip,
   TooltipContent,
@@ -226,7 +232,7 @@ export function ObjectListSearch({
       data-expanded=""
       data-loading={loading ? "" : undefined}
       className={cn(
-        "relative flex min-w-0 items-center",
+        "flex min-w-0 items-center",
         collapses ? "w-full flex-1" : "w-40 sm:w-52",
         className,
       )}
@@ -237,60 +243,55 @@ export function ObjectListSearch({
         setOpen(false);
       }}
     >
-      <SearchIcon
-        aria-hidden
-        className="pointer-events-none absolute start-2.5 size-3.5 text-dimah-s3-muted-foreground"
-      />
-      <Input
-        ref={inputRef}
-        type="search"
-        value={value}
-        placeholder={label}
-        aria-label={label}
-        aria-keyshortcuts="/"
-        aria-busy={loading || undefined}
-        autoComplete="off"
-        spellCheck={false}
-        enterKeyHint="search"
+      <InputGroup
         className={cn(
-          // 16px text on small screens, which iOS does not zoom into.
-          "w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent ps-8 text-base text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 md:text-sm [&::-webkit-search-cancel-button]:appearance-none",
-          collapses
-            ? "h-8 pe-14 pointer-coarse:h-9"
-            : "h-7 pe-12 pointer-coarse:h-9 pointer-coarse:pe-14",
+          "border-dimah-s3-border",
+          collapses ? "h-8 pointer-coarse:h-9" : "h-7 pointer-coarse:h-9",
         )}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={onKeyDown}
-      />
-      {collapses ? (
-        <div className="absolute end-1.5 flex items-center gap-1">
-          {spinner}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="pointer-coarse:size-7"
-            aria-label={t("Close search", { note: "object list" })}
-            onClick={close}
-          >
-            <XIcon />
-          </Button>
-        </div>
-      ) : (
-        <div className="absolute end-1 flex items-center gap-1">
-          {spinner}
-          {value ? (
-            <button
-              type="button"
-              aria-label={t("Clear search", { note: "object list" })}
-              className="flex size-5 items-center justify-center rounded-sm text-dimah-s3-muted-foreground outline-none hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:size-7"
-              onClick={() => commit("")}
-            >
-              <XIcon className="size-3.5" />
-            </button>
-          ) : null}
-        </div>
-      )}
+      >
+        <InputGroupAddon>
+          <SearchIcon aria-hidden className="size-3.5" />
+        </InputGroupAddon>
+        <InputGroupInput
+          ref={inputRef}
+          type="search"
+          value={value}
+          placeholder={label}
+          aria-label={label}
+          aria-keyshortcuts="/"
+          aria-busy={loading || undefined}
+          autoComplete="off"
+          spellCheck={false}
+          enterKeyHint="search"
+          className="[&::-webkit-search-cancel-button]:appearance-none"
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={onKeyDown}
+        />
+        {spinner || collapses || value ? (
+          <InputGroupAddon align="inline-end" className="gap-1">
+            {spinner}
+            {collapses ? (
+              <InputGroupButton
+                size="icon-xs"
+                className="pointer-coarse:size-7"
+                aria-label={t("Close search", { note: "object list" })}
+                onClick={close}
+              >
+                <XIcon />
+              </InputGroupButton>
+            ) : value ? (
+              <InputGroupButton
+                size="icon-xs"
+                className="pointer-coarse:size-7"
+                aria-label={t("Clear search", { note: "object list" })}
+                onClick={() => commit("")}
+              >
+                <XIcon />
+              </InputGroupButton>
+            ) : null}
+          </InputGroupAddon>
+        ) : null}
+      </InputGroup>
     </div>
   );
 }
@@ -389,26 +390,31 @@ export function ObjectListSearchBar({ className }: ObjectListSearchBarProps) {
     >
       <span className="shrink-0">{inLabel}</span>
       {choose && folder ? (
-        <div
-          role="radiogroup"
+        <ToggleGroup
           aria-label={inLabel}
-          className="flex min-w-0 items-center gap-0.5 rounded-lg border border-dimah-s3-border p-0.5"
+          size="sm"
+          spacing={0.5}
+          value={[list.searchScope]}
+          onValueChange={(value) => {
+            // Pressing the pressed one would leave none: keep it.
+            const [scope] = value;
+            if (scope === "folder" || scope === "all") {
+              list.setSearchScope(scope);
+            }
+          }}
+          className="min-w-0 border border-dimah-s3-border p-0.5"
         >
           <ScopeChoice
             scope="folder"
-            current={list.searchScope}
-            onSelect={list.setSearchScope}
             icon={<FolderIcon aria-hidden />}
             label={folder.name}
           />
           <ScopeChoice
             scope="all"
-            current={list.searchScope}
-            onSelect={list.setSearchScope}
             icon={<HomeIcon aria-hidden />}
             label={rootLabel}
           />
-        </div>
+        </ToggleGroup>
       ) : (
         <span className="flex min-w-0 items-center gap-1 font-medium text-dimah-s3-foreground">
           {folder ? (
@@ -435,54 +441,23 @@ export function ObjectListSearchBar({ className }: ObjectListSearchBarProps) {
 /** One button of the "Search in" choice. */
 function ScopeChoice({
   scope,
-  current,
-  onSelect,
   icon,
   label,
 }: {
   scope: ObjectListSearchScope;
-  current: ObjectListSearchScope;
-  onSelect: (scope: ObjectListSearchScope) => void;
   icon: ReactNode;
   label: string;
 }) {
-  const checked = scope === current;
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="xs"
-      role="radio"
-      aria-checked={checked}
-      // One tab stop for the group; arrow keys switch.
-      tabIndex={checked ? 0 : -1}
-      className="min-w-0 aria-checked:bg-dimah-s3-muted aria-checked:text-dimah-s3-foreground pointer-coarse:h-7"
-      onClick={() => onSelect(scope)}
-      onKeyDown={(event) => {
-        if (
-          !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
-            event.key,
-          )
-        ) {
-          return;
-        }
-        event.preventDefault();
-        const next = scope === "folder" ? "all" : "folder";
-        onSelect(next);
-        const group = event.currentTarget.parentElement;
-        // Focus follows the choice once it has drawn.
-        requestAnimationFrame(() =>
-          group
-            ?.querySelector<HTMLElement>("[role=radio][aria-checked=true]")
-            ?.focus(),
-        );
-      }}
+    <ToggleGroupItem
+      value={scope}
+      className="h-6 min-w-0 px-2 text-xs aria-pressed:bg-dimah-s3-muted aria-pressed:text-dimah-s3-foreground pointer-coarse:h-7"
     >
       {icon}
       <span className="max-w-32 truncate">
         <bdi>{label}</bdi>
       </span>
-    </Button>
+    </ToggleGroupItem>
   );
 }
 

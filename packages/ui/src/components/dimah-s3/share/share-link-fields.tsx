@@ -8,14 +8,16 @@ import {
   type ShareLinkSettingsInput,
 } from "@dimah-s3/share/client";
 import { useTranslations } from "@fuma-translate/react";
-import { cn } from "cn";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /** Lifetimes a new link offers by default, in seconds: 1, 7, and 30 days. */
 export const DEFAULT_SHARE_EXPIRY_OPTIONS: readonly (number | null)[] = [
@@ -136,8 +138,6 @@ export function useShareDurationLabel(): (seconds: number | null) => string {
   );
 }
 
-const LABEL_CLASS = "text-xs text-dimah-s3-muted-foreground";
-
 /**
  * The settings of a link: lifetime, password, download limit, and note.
  * For a new link, or, with `link`, for changing one. @internal
@@ -165,36 +165,52 @@ export function ShareLinkFields({
     onChange({ ...draft, ...patch });
   const hasPassword = link?.passwordProtected === true;
 
+  const expiryItems = [
+    ...(link
+      ? [
+          {
+            value: "keep",
+            label: t("Keep the current expiry", { note: "share link field" }),
+          },
+        ]
+      : []),
+    ...expiryOptions.map((seconds, index) => ({
+      value: String(index),
+      label: duration(seconds),
+    })),
+  ];
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <Label htmlFor={`${id}-expiry`} className={LABEL_CLASS}>
+    <FieldGroup className="grid gap-3 sm:grid-cols-2">
+      <Field>
+        <FieldLabel htmlFor={`${id}-expiry`}>
           {t("Expires after", { note: "share link field" })}
-        </Label>
-        <NativeSelect
-          id={`${id}-expiry`}
+        </FieldLabel>
+        <Select
+          items={expiryItems}
           value={draft.expiry}
           disabled={disabled}
-          className="w-full"
-          onChange={(event) => set({ expiry: event.target.value })}
+          onValueChange={(value) => {
+            if (typeof value === "string") set({ expiry: value });
+          }}
         >
-          {link ? (
-            <NativeSelectOption value="keep">
-              {t("Keep the current expiry", { note: "share link field" })}
-            </NativeSelectOption>
-          ) : null}
-          {expiryOptions.map((seconds, index) => (
-            <NativeSelectOption key={seconds ?? "never"} value={String(index)}>
-              {duration(seconds)}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </div>
+          <SelectTrigger id={`${id}-expiry`} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {expiryItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
       {fields.maxDownloads !== false ? (
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor={`${id}-limit`} className={LABEL_CLASS}>
+        <Field>
+          <FieldLabel htmlFor={`${id}-limit`}>
             {t("Download limit", { note: "share link field" })}
-          </Label>
+          </FieldLabel>
           <Input
             id={`${id}-limit`}
             type="number"
@@ -207,15 +223,15 @@ export function ShareLinkFields({
             placeholder={t("No limit", { note: "share link field" })}
             onChange={(event) => set({ maxDownloads: event.target.value })}
           />
-        </div>
+        </Field>
       ) : null}
       {fields.password !== false ? (
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor={`${id}-password`} className={LABEL_CLASS}>
+        <Field>
+          <FieldLabel htmlFor={`${id}-password`}>
             {hasPassword
               ? t("New password", { note: "share link field" })
               : t("Password", { note: "share link field" })}
-          </Label>
+          </FieldLabel>
           <Input
             id={`${id}-password`}
             type="password"
@@ -230,24 +246,30 @@ export function ShareLinkFields({
             onChange={(event) => set({ password: event.target.value })}
           />
           {hasPassword ? (
-            <Label className={cn(LABEL_CLASS, "font-normal")}>
+            <Field orientation="horizontal">
               <Checkbox
+                id={`${id}-remove-password`}
                 checked={draft.removePassword}
                 disabled={disabled}
                 onCheckedChange={(checked) =>
                   set({ removePassword: checked, password: "" })
                 }
               />
-              {t("Remove the password", { note: "share link field" })}
-            </Label>
+              <FieldLabel
+                htmlFor={`${id}-remove-password`}
+                className="font-normal"
+              >
+                {t("Remove the password", { note: "share link field" })}
+              </FieldLabel>
+            </Field>
           ) : null}
-        </div>
+        </Field>
       ) : null}
       {fields.label !== false ? (
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor={`${id}-label`} className={LABEL_CLASS}>
+        <Field>
+          <FieldLabel htmlFor={`${id}-label`}>
             {t("Note", { note: "share link field" })}
-          </Label>
+          </FieldLabel>
           <Input
             id={`${id}-label`}
             type="text"
@@ -260,8 +282,8 @@ export function ShareLinkFields({
             })}
             onChange={(event) => set({ label: event.target.value })}
           />
-        </div>
+        </Field>
       ) : null}
-    </div>
+    </FieldGroup>
   );
 }

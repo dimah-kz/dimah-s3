@@ -22,11 +22,31 @@ import {
   type ShareVisitorLink,
 } from "@dimah-s3/share/client";
 import { useTranslations } from "@fuma-translate/react";
-import { DownloadIcon, LinkIcon, LockIcon } from "lucide-react";
+import {
+  CircleAlertIcon,
+  DownloadIcon,
+  LinkIcon,
+  LockIcon,
+} from "lucide-react";
 import { cn } from "cn";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import { FileTypeGlyph } from "@/components/dimah-s3/attachment/file-type-glyph";
 import { ObjectList } from "@/components/dimah-s3/list/object-list";
@@ -135,15 +155,14 @@ export function SharedView({
   if (current.link === undefined) {
     return (
       <div data-slot="shared-view" className={shell}>
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dimah-s3-border p-8 text-center">
-          <LinkIcon
-            aria-hidden
-            className="size-6 text-dimah-s3-muted-foreground"
-          />
-          <p role="alert" className="text-sm text-dimah-s3-foreground">
-            {formatError(current.error)}
-          </p>
-        </div>
+        <Empty role="alert" className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <LinkIcon />
+            </EmptyMedia>
+            <EmptyTitle>{formatError(current.error)}</EmptyTitle>
+          </EmptyHeader>
+        </Empty>
       </div>
     );
   }
@@ -173,12 +192,12 @@ export function SharedView({
     <div data-slot="shared-view" className={shell}>
       {header ? header(link) : <SharedViewHeader link={link} />}
       {downloadError != null ? (
-        <p
-          role="alert"
-          className="text-sm [overflow-wrap:anywhere] text-dimah-s3-destructive"
-        >
-          {formatError(downloadError)}
-        </p>
+        <Alert variant="destructive">
+          <CircleAlertIcon />
+          <AlertDescription className="[overflow-wrap:anywhere]">
+            {formatError(downloadError)}
+          </AlertDescription>
+        </Alert>
       ) : null}
       {link.type === "folder" ? (
         <SharedFolder
@@ -267,33 +286,29 @@ function PasswordForm({
       className="flex w-full max-w-sm flex-col gap-3"
       onSubmit={(event) => void onSubmit(event)}
     >
-      <Label htmlFor={`${id}-password`} className="text-dimah-s3-foreground">
-        <LockIcon aria-hidden className="size-4" />
-        {t("This link needs a password", { note: "shared view" })}
-      </Label>
-      <Input
-        id={`${id}-password`}
-        type="password"
-        autoComplete="current-password"
-        required
-        value={password}
-        readOnly={pending}
-        aria-invalid={error != null || undefined}
-        aria-describedby={error != null ? `${id}-error` : undefined}
-        onChange={(event) => {
-          setPassword(event.target.value);
-          setError(null);
-        }}
-      />
-      {error != null ? (
-        <p
-          id={`${id}-error`}
-          role="alert"
-          className="text-sm text-dimah-s3-destructive"
-        >
-          {formatError(error)}
-        </p>
-      ) : null}
+      <Field data-invalid={error != null || undefined}>
+        <FieldLabel htmlFor={`${id}-password`}>
+          <LockIcon aria-hidden className="size-4" />
+          {t("This link needs a password", { note: "shared view" })}
+        </FieldLabel>
+        <Input
+          id={`${id}-password`}
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          readOnly={pending}
+          aria-invalid={error != null || undefined}
+          aria-describedby={error != null ? `${id}-error` : undefined}
+          onChange={(event) => {
+            setPassword(event.target.value);
+            setError(null);
+          }}
+        />
+        {error != null ? (
+          <FieldError id={`${id}-error`}>{formatError(error)}</FieldError>
+        ) : null}
+      </Field>
       <Button
         type="submit"
         className="self-start pointer-coarse:h-10"
@@ -328,46 +343,48 @@ function SharedFile({
   const { object } = link;
   const exhausted = link.downloadsLeft === 0;
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-dimah-s3-border p-3">
-      <span className="flex size-10 shrink-0 items-center justify-center">
+    <Item variant="outline">
+      <ItemMedia className="size-10">
         <FileTypeGlyph
           fileName={object.name}
           contentType={object.contentType}
           layout="icon"
         />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium text-dimah-s3-foreground">
-          <bdi>{object.name}</bdi>
-        </span>
-        {object.size === null ? null : (
-          <span className="text-xs text-dimah-s3-muted-foreground">
-            {formatFileSize(object.size)}
+      </ItemMedia>
+      <ItemContent className="min-w-0">
+        <ItemTitle className="min-w-0">
+          <span className="truncate">
+            <bdi>{object.name}</bdi>
           </span>
+        </ItemTitle>
+        {object.size === null ? null : (
+          <ItemDescription>{formatFileSize(object.size)}</ItemDescription>
         )}
-      </div>
-      <Button
-        disabled={pending || exhausted}
-        aria-busy={pending || undefined}
-        className="pointer-coarse:h-10"
-        onClick={() => {
-          setPending(true);
-          void onDownload().finally(() => setPending(false));
-        }}
-      >
-        {pending ? (
-          <Spinner
-            data-icon="inline-start"
-            aria-hidden
-            aria-label={undefined}
-            role={undefined}
-          />
-        ) : (
-          <DownloadIcon data-icon="inline-start" />
-        )}
-        {t("Download", { note: "shared view" })}
-      </Button>
-    </div>
+      </ItemContent>
+      <ItemActions>
+        <Button
+          disabled={pending || exhausted}
+          aria-busy={pending || undefined}
+          className="pointer-coarse:h-10"
+          onClick={() => {
+            setPending(true);
+            void onDownload().finally(() => setPending(false));
+          }}
+        >
+          {pending ? (
+            <Spinner
+              data-icon="inline-start"
+              aria-hidden
+              aria-label={undefined}
+              role={undefined}
+            />
+          ) : (
+            <DownloadIcon data-icon="inline-start" />
+          )}
+          {t("Download", { note: "shared view" })}
+        </Button>
+      </ItemActions>
+    </Item>
   );
 }
 

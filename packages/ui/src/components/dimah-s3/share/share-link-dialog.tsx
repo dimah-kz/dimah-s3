@@ -20,12 +20,26 @@ import {
 import { useTranslations } from "@fuma-translate/react";
 import {
   CheckIcon,
+  CircleAlertIcon,
   CopyIcon,
   LinkIcon,
   LockIcon,
   PencilIcon,
   PowerOffIcon,
 } from "lucide-react";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +51,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { FieldError } from "@/components/ui/field";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemTitle,
+} from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DEFAULT_SHARE_EXPIRY_OPTIONS,
@@ -251,12 +281,9 @@ function SharePanel({
           disabled={creating}
         />
         {error != null ? (
-          <p
-            role="alert"
-            className="text-sm [overflow-wrap:anywhere] text-dimah-s3-destructive"
-          >
+          <FieldError className="[overflow-wrap:anywhere]">
             {formatError(error)}
-          </p>
+          </FieldError>
         ) : null}
         <Button
           type="submit"
@@ -343,33 +370,40 @@ function LinkList({
   }
   if (links.status === "error") {
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        <p
-          role="alert"
-          className="text-sm [overflow-wrap:anywhere] text-dimah-s3-destructive"
-        >
+      <Alert variant="destructive">
+        <CircleAlertIcon />
+        <AlertDescription className="[overflow-wrap:anywhere]">
           {formatError(links.error)}
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void links.refresh()}
-        >
-          {t("Try again", { note: "share link dialog" })}
-        </Button>
-      </div>
+        </AlertDescription>
+        <AlertAction>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => void links.refresh()}
+          >
+            {t("Try again", { note: "share link dialog" })}
+          </Button>
+        </AlertAction>
+      </Alert>
     );
   }
   if (links.links.length === 0) {
     return (
-      <p className="text-sm text-dimah-s3-muted-foreground">
-        {t("No links yet.", { note: "share link dialog" })}
-      </p>
+      <Empty className="border p-4">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <LinkIcon />
+          </EmptyMedia>
+          <EmptyDescription>
+            {t("No links yet.", { note: "share link dialog" })}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
   return (
     <>
-      <ul className="flex flex-col gap-2">
+      <ItemGroup className="gap-2">
         {links.links.map((link) => (
           <LinkRow
             key={link.id}
@@ -382,7 +416,7 @@ function LinkList({
             onCopy={() => onCopy(link)}
           />
         ))}
-      </ul>
+      </ItemGroup>
       {links.hasMore ? (
         <Button
           variant="outline"
@@ -423,21 +457,24 @@ function LinkRow({
   const formatError = useFormatError();
   const formatDate = useFormatDate();
   const formatNumber = useFormatNumber();
-  const [mode, setMode] = useState<"view" | "edit" | "revoke">("view");
+  const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [draft, setDraft] = useState<ShareLinkDraft>(() => linkDraft(link));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const revoked = link.status === "revoked";
   const date = (value: string) => formatDate(value, { dateStyle: "medium" });
 
-  async function run(action: () => Promise<unknown>) {
+  /** Runs a change; `true` once it succeeded. */
+  async function run(action: () => Promise<unknown>): Promise<boolean> {
     setPending(true);
     setError(null);
     try {
       await action();
-      setMode("view");
+      return true;
     } catch (caught) {
       setError(caught);
+      return false;
     } finally {
       setPending(false);
     }
@@ -484,169 +521,187 @@ function LinkRow({
   ].filter((fact): fact is string => fact !== null);
 
   return (
-    <li
+    <Item
+      role="listitem"
+      variant="outline"
+      size="sm"
       data-slot="share-link-row"
       data-status={link.status}
-      className="flex flex-col gap-2 rounded-lg border border-dimah-s3-border p-3"
+      className="items-start"
     >
-      <div className="flex items-start gap-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <LinkStatusBadge status={link.status} />
-            {link.passwordProtected ? (
-              <LockIcon
-                className="size-3.5 shrink-0 text-dimah-s3-muted-foreground"
-                aria-label={t("Needs a password", { note: "share link facts" })}
-                role="img"
-              />
-            ) : null}
-            {link.label ? (
-              <span className="truncate text-sm font-medium">
-                <bdi>{link.label}</bdi>
-              </span>
-            ) : null}
-          </div>
-          <p className="text-xs text-dimah-s3-muted-foreground">
-            {facts.join(" · ")}
-          </p>
-          {link.target.available ? null : (
-            <p className="text-xs text-dimah-s3-warning">
-              {t("The shared item was deleted.", {
-                note: "share link facts",
-              })}
-            </p>
+      <ItemContent className="min-w-0">
+        <ItemTitle className="min-w-0">
+          <LinkStatusBadge status={link.status} />
+          {link.passwordProtected ? (
+            <LockIcon
+              className="size-3.5 shrink-0 text-dimah-s3-muted-foreground"
+              aria-label={t("Needs a password", { note: "share link facts" })}
+              role="img"
+            />
+          ) : null}
+          {link.label ? (
+            <span className="truncate">
+              <bdi>{link.label}</bdi>
+            </span>
+          ) : null}
+        </ItemTitle>
+        <ItemDescription>{facts.join(" · ")}</ItemDescription>
+        {link.target.available ? null : (
+          <ItemDescription className="text-dimah-s3-warning">
+            {t("The shared item was deleted.", { note: "share link facts" })}
+          </ItemDescription>
+        )}
+      </ItemContent>
+      <ItemActions className="gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={href === null || revoked}
+          aria-label={
+            copied
+              ? t("Copied", { note: "share link dialog" })
+              : t("Copy link", { note: "share link dialog" })
+          }
+          onClick={onCopy}
+        >
+          {copied ? (
+            <CheckIcon className="text-dimah-s3-success" />
+          ) : (
+            <CopyIcon />
           )}
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            disabled={href === null || revoked}
-            aria-label={
-              copied
-                ? t("Copied", { note: "share link dialog" })
-                : t("Copy link", { note: "share link dialog" })
-            }
-            onClick={onCopy}
-          >
-            {copied ? (
-              <CheckIcon className="text-dimah-s3-success" />
-            ) : (
-              <CopyIcon />
-            )}
-          </Button>
-          {revoked ? null : (
-            <>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t("Change link", { note: "share link dialog" })}
-                aria-expanded={mode === "edit"}
-                disabled={pending}
-                onClick={() => {
-                  setDraft(linkDraft(link));
-                  setError(null);
-                  setMode(mode === "edit" ? "view" : "edit");
-                }}
-              >
-                <PencilIcon />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t("Turn off link", { note: "share link dialog" })}
-                aria-expanded={mode === "revoke"}
-                disabled={pending}
-                onClick={() => {
-                  setError(null);
-                  setMode(mode === "revoke" ? "view" : "revoke");
-                }}
+        </Button>
+        {revoked ? null : (
+          <>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("Change link", { note: "share link dialog" })}
+              aria-expanded={editing}
+              disabled={pending}
+              onClick={() => {
+                setDraft(linkDraft(link));
+                setError(null);
+                setEditing(!editing);
+              }}
+            >
+              <PencilIcon />
+            </Button>
+            <AlertDialog
+              open={confirming}
+              onOpenChange={(open) => {
+                if (pending) return;
+                setConfirming(open);
+                if (open) setError(null);
+              }}
+            >
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t("Turn off link", {
+                      note: "share link dialog",
+                    })}
+                    disabled={pending}
+                  />
+                }
               >
                 <PowerOffIcon />
+              </AlertDialogTrigger>
+              <AlertDialogContent size="sm">
+                <AlertDialogHeader>
+                  <AlertDialogMedia>
+                    <PowerOffIcon />
+                  </AlertDialogMedia>
+                  <AlertDialogTitle>
+                    {t("Turn off this link?", { note: "share link dialog" })}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("Anyone who has this link can no longer open it.", {
+                      note: "share link dialog",
+                    })}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {error != null && confirming ? (
+                  <FieldError className="[overflow-wrap:anywhere]">
+                    {formatError(error)}
+                  </FieldError>
+                ) : null}
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={pending}>
+                    {t("Cancel", { note: "dialog button" })}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    disabled={pending}
+                    aria-busy={pending || undefined}
+                    onClick={() =>
+                      void run(() => links.revoke(link.id)).then((done) => {
+                        if (done) setConfirming(false);
+                      })
+                    }
+                  >
+                    {t("Turn off", { note: "share link dialog" })}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        )}
+      </ItemActions>
+
+      {editing ? (
+        <ItemFooter className="border-t pt-3">
+          <form
+            className="flex w-full flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void run(() =>
+                links.update(
+                  link.id,
+                  draftSettings(draft, expiryOptions, link),
+                ),
+              ).then((done) => {
+                if (done) setEditing(false);
+              });
+            }}
+          >
+            <ShareLinkFields
+              draft={draft}
+              onChange={setDraft}
+              expiryOptions={expiryOptions}
+              fields={fields}
+              link={link}
+              disabled={pending}
+            />
+            {error != null && !confirming ? (
+              <FieldError className="[overflow-wrap:anywhere]">
+                {formatError(error)}
+              </FieldError>
+            ) : null}
+            <div className="flex gap-2 self-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() => setEditing(false)}
+              >
+                {t("Cancel", { note: "dialog button" })}
               </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {mode === "revoke" ? (
-        <div className="flex flex-col gap-2 rounded-md bg-dimah-s3-muted/50 p-2 sm:flex-row sm:items-center">
-          <p className="text-xs text-dimah-s3-muted-foreground sm:me-auto">
-            {t("Anyone who has this link can no longer open it.", {
-              note: "share link dialog",
-            })}
-          </p>
-          <div className="flex gap-2 self-end">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => setMode("view")}
-            >
-              {t("Cancel", { note: "dialog button" })}
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={pending}
-              aria-busy={pending || undefined}
-              onClick={() => void run(() => links.revoke(link.id))}
-            >
-              {t("Turn off", { note: "share link dialog" })}
-            </Button>
-          </div>
-        </div>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={pending}
+                aria-busy={pending || undefined}
+              >
+                {t("Save", { note: "share link dialog" })}
+              </Button>
+            </div>
+          </form>
+        </ItemFooter>
       ) : null}
-
-      {mode === "edit" ? (
-        <form
-          className="flex flex-col gap-3 border-t border-dimah-s3-border pt-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void run(() =>
-              links.update(link.id, draftSettings(draft, expiryOptions, link)),
-            );
-          }}
-        >
-          <ShareLinkFields
-            draft={draft}
-            onChange={setDraft}
-            expiryOptions={expiryOptions}
-            fields={fields}
-            link={link}
-            disabled={pending}
-          />
-          <div className="flex gap-2 self-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => setMode("view")}
-            >
-              {t("Cancel", { note: "dialog button" })}
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={pending}
-              aria-busy={pending || undefined}
-            >
-              {t("Save", { note: "share link dialog" })}
-            </Button>
-          </div>
-        </form>
-      ) : null}
-
-      {error != null ? (
-        <p
-          role="alert"
-          className="text-xs [overflow-wrap:anywhere] text-dimah-s3-destructive"
-        >
-          {formatError(error)}
-        </p>
-      ) : null}
-    </li>
+    </Item>
   );
 }
 

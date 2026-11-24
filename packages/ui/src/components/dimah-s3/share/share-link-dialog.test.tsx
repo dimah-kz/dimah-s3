@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { s3Error } from "@dimah-s3/core";
 import type { ObjectListEntry } from "@dimah-s3/react";
 import type { ShareClientLink } from "@dimah-s3/share/client";
@@ -54,12 +55,17 @@ function fakeShare(links: ShareClientLink[]) {
 const target = { type: "object", key: "a.txt" } as const;
 const writeText = vi.fn(async (_text: string) => {});
 
-beforeEach(() => {
-  writeText.mockClear();
+/** Puts `writeText` on `navigator.clipboard`. */
+function stubClipboard() {
   Object.defineProperty(navigator, "clipboard", {
     value: { writeText },
     configurable: true,
   });
+}
+
+beforeEach(() => {
+  writeText.mockClear();
+  stubClipboard();
 });
 
 afterEach(() => {
@@ -94,7 +100,9 @@ describe("ShareLinkDialog", () => {
     expect(
       screen.getByRole("dialog", { name: 'Share "⁨a.txt⁩"' }),
     ).toBeTruthy();
-    const row = (await screen.findByText("For Sam")).closest("li");
+    const row = (await screen.findByText("For Sam")).closest(
+      "[data-slot=share-link-row]",
+    );
     expect(row).not.toBeNull();
     const inRow = within(row as HTMLElement);
     expect(inRow.getByText("Active")).toBeTruthy();
@@ -111,9 +119,15 @@ describe("ShareLinkDialog", () => {
     renderDialog(share);
     await screen.findByText("No links yet.");
 
-    fireEvent.change(screen.getByLabelText("Expires after"), {
-      target: { value: "1" },
-    });
+    // The stock Select takes pointer events: open it, then pick the second
+    // lifetime. user-event swaps the clipboard, so put the spy back.
+    const user = userEvent.setup();
+    stubClipboard();
+    await user.click(screen.getByRole("combobox", { name: "Expires after" }));
+    await user.click(await screen.findByRole("option", { name: "7 days" }));
+    expect(
+      screen.getByRole("combobox", { name: "Expires after" }).textContent,
+    ).toContain("7 days");
     fireEvent.change(screen.getByLabelText("Download limit"), {
       target: { value: "3" },
     });
@@ -156,7 +170,9 @@ describe("ShareLinkDialog", () => {
     await screen.findByText("Old");
 
     fireEvent.click(screen.getByRole("button", { name: "Change link" }));
-    const row = screen.getByText("Old").closest("li") as HTMLElement;
+    const row = screen
+      .getByText("Old")
+      .closest("[data-slot=share-link-row]") as HTMLElement;
     fireEvent.change(within(row).getByLabelText("Note"), {
       target: { value: "New" },
     });
@@ -164,11 +180,12 @@ describe("ShareLinkDialog", () => {
     await screen.findByText("New");
     expect(share.updateLink).toHaveBeenCalledWith({ id: "1", label: "New" });
 
+    // The confirmation is a stock AlertDialog.
     fireEvent.click(screen.getByRole("button", { name: "Turn off link" }));
-    expect(
-      screen.getByText("Anyone who has this link can no longer open it."),
-    ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
+    const confirm = await screen.findByRole("alertdialog", {
+      name: "Turn off this link?",
+    });
+    fireEvent.click(within(confirm).getByRole("button", { name: "Turn off" }));
     await screen.findByText("No links yet.");
     expect(share.revokeLink).toHaveBeenCalledWith({ id: "1" });
   });
