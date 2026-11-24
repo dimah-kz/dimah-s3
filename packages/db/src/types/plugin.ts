@@ -244,6 +244,10 @@ export type DbPluginOptions<
   onFolderCreated?: DbHook<DbFolderCreatedContext<TSession>>;
   /** After `PATCH /db/folder` renamed or moved a folder. A call that changes nothing does not run it. */
   onFolderUpdated?: DbHook<DbFolderUpdatedContext<TSession>>;
-  /** After `DELETE /db/folder` removed a folder. A missing folder does not run it. */
+  /**
+   * After `DELETE /db/folder` removed a folder. A missing folder does not
+   * run it; two calls at once for the same folder can each run it, so key
+   * what it writes by the folder's `id`.
+   */
   onFolderDeleted?: DbHook<DbFolderDeletedContext<TSession>>;
 };

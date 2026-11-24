@@ -159,12 +159,31 @@ describe("db() through the test kit", () => {
       }),
     );
 
+    const { folder: archive } = await client.db.createFolder(
+      { name: "archive" },
+      asUser("1"),
+    );
+    await client.db.createFolder(
+      { name: "2025", parentId: archive.id },
+      asUser("1"),
+    );
+    await client.db.deleteFolder(
+      { id: archive.id, recursive: true },
+      asUser("1"),
+    );
+    expect(onFolderDeleted).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        folder: expect.objectContaining({ id: archive.id }),
+        recursive: true,
+      }),
+    );
+
     // A missing folder, and a call refused before its write, run nothing.
     await client.db.deleteFolder({ id: drawings.id }, asUser("1"));
     await expect(
       client.db.updateObject({ key, name: "c.txt" }, asUser("2")),
     ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
-    expect(onFolderDeleted).toHaveBeenCalledTimes(1);
+    expect(onFolderDeleted).toHaveBeenCalledTimes(2);
     expect(onObjectUpdated).toHaveBeenCalledTimes(1);
   });
 

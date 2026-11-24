@@ -460,6 +460,15 @@ describe("authorizeVisit", () => {
       }),
     );
 
+    // A search checks the folder it searches in, not each match.
+    await t.client.share.listShared({ token: link.token, search: "q1" });
+    expect(authorizeVisit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "listShared",
+        folder: expect.objectContaining({ id: docs }),
+      }),
+    );
+
     // An object link: the folder that holds the file, none at the root.
     const atRoot = await objectLink(t);
     await t.client.share.openLink({ token: atRoot.link.token });

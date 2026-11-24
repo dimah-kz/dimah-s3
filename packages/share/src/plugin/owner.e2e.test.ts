@@ -271,6 +271,13 @@ describe("listLinks", () => {
       { target: { type: "folder", folderId: docs } },
       as("1"),
     );
+    expect(dbAuthorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        plugin: { id: "share", action: "listLinks" },
+        folder: "Docs",
+        folderId: docs,
+      }),
+    );
     expect(authorize).toHaveBeenLastCalledWith(
       expect.objectContaining({
         target: {

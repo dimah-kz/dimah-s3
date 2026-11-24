@@ -39,7 +39,10 @@ function link(id: string, extra: Partial<ShareClientLink> = {}) {
 
 function fakeShare(links: ShareClientLink[]) {
   return {
-    listLinks: vi.fn(async () => ({ links, nextCursor: null })),
+    listLinks: vi.fn(async () => ({
+      links,
+      nextCursor: null as string | null,
+    })),
     createLink: vi.fn(async (input: { label?: string | null }) => ({
       link: link("new", { label: input.label ?? null }),
     })),

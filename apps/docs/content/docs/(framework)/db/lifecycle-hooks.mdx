@@ -144,6 +144,9 @@ db({
   do not run them: those are your own writes.
 - A throw fails the call, and the change stays. Catch errors in a hook that
   must not fail the call.
+- A `PATCH /db/folder` that changes neither the name nor the parent runs no
+  hook. Two `DELETE /db/folder` calls at once for the same folder can each
+  run `onFolderDeleted`, so key a log or an index by the folder's `id`.
 
 ## Errors
 
