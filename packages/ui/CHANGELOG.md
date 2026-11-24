@@ -1,3 +1,26 @@
+## @dimah-s3/ui@2.3.0
+
+### Slots on the ObjectList header bar and row names
+
+`ObjectList` marks two more parts with `data-slot`, so an app can style them without selecting internal utility classes. No visual change.
+
+- **`object-list-header-bar`.** The header's bar that holds the path and the controls.
+- **`object-list-entry-name`.** The name of a row, and of a tile in the grid view.
+
+### Share links take a lifetime
+
+`createLink` and `updateLink` take `expiresIn`, the link's lifetime in whole seconds. The server adds it to its own clock and checks it against `expiration.max`, so a browser clock that runs ahead no longer makes the longest lifetime fail. [createLink input](https://s3.dimah.dev/docs/share/api#createlink-input).
+
+- **`expiresIn`.** An integer of at least 1, on `shareClient()`, `s3.share.api`, and `POST` / `PATCH /share/link`. It is an alternative to `expiresAt`: sending both fails with `VALIDATION_ERROR`. `expiresAt: null` still means the link never expires.
+- **`ShareLinkDialog`.** Sends the picked `expiryOptions` lifetime as `expiresIn`, so `expiration.max` can equal the longest option without a margin. Keep `@dimah-s3/share` and `@dimah-s3/ui` on the same version: an older `share()` refuses `expiresIn`.
+- **Registry.** `share-link-dialog` and `shared-view` install `@dimah-s3/share@^2.3.0`.
+
+### SharedView says a download started
+
+`SharedView` announces "Download started" in a polite live region once the browser has the file's URL, and its Download button shows a check for two seconds, for the shared file and for each file of a shared folder. Before, a link without a download limit gave no sign, and a second press counted a second download.
+
+- **Translation.** `"Download started(shared view)"`.
+
 ## @dimah-s3/ui@2.2.0
 
 ### ObjectList draws stock shadcn primitives

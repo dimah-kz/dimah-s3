@@ -1,3 +1,27 @@
+## @dimah-s3/share@2.3.0
+
+### Change hooks get what the call loaded
+
+The change hooks pass the rows their call already loaded, so an activity log or a search index no longer loads them again, and cannot race a concurrent move or delete. [Share API](https://s3.dimah.dev/docs/share/api#authorize-and-hooks), [change hooks](https://s3.dimah.dev/docs/db/lifecycle-hooks#change-hooks).
+
+- **`share()` `onCreated`, `onUpdated`, `onRevoked`.** `ShareLinkEventContext` has `target`, the object or folder the link points at, as `onOpened` has. It is absent on an update or a revoke once that object or folder is gone.
+- **`db()` `onObjectUpdated`.** `DbObjectUpdatedContext` has `folder`, the path of the folder the object was in (`null` at the root, absent once that folder is gone), and `destination` when the call named a `folderId`, with the shapes `authorize` sees.
+
+### Share links take a lifetime
+
+`createLink` and `updateLink` take `expiresIn`, the link's lifetime in whole seconds. The server adds it to its own clock and checks it against `expiration.max`, so a browser clock that runs ahead no longer makes the longest lifetime fail. [createLink input](https://s3.dimah.dev/docs/share/api#createlink-input).
+
+- **`expiresIn`.** An integer of at least 1, on `shareClient()`, `s3.share.api`, and `POST` / `PATCH /share/link`. It is an alternative to `expiresAt`: sending both fails with `VALIDATION_ERROR`. `expiresAt: null` still means the link never expires.
+- **`ShareLinkDialog`.** Sends the picked `expiryOptions` lifetime as `expiresIn`, so `expiration.max` can equal the longest option without a margin. Keep `@dimah-s3/share` and `@dimah-s3/ui` on the same version: an older `share()` refuses `expiresIn`.
+- **Registry.** `share-link-dialog` and `shared-view` install `@dimah-s3/share@^2.3.0`.
+
+### useFormatError words the share() rules
+
+A link setting that breaks a `share()` rule still fails with `VALIDATION_ERROR`, and its `params` now name the rule, so `useFormatError` says what to change instead of "Invalid request". `ShareLinkDialog` shows it under the form. [Policy](https://s3.dimah.dev/docs/share/api#policy).
+
+- **`params.rule`.** `passwordRequired`, `passwordTooShort` (with `minLength`), `expiryRequired`, `expiryInPast`, or `expiryTooLong` (with `maxExpiresIn`, in seconds). `params.issue` and the message are unchanged. The `VALIDATION_ERROR` entry of `S3ErrorParamsMap` types them.
+- **`useFormatError`.** Words each rule, such as "Use at least 8 characters for the password" and "Choose an expiry of at most 7 days", under keys your `translations` can localize, such as `"Use at least {minLength} characters for the password(API error)"`. A `VALIDATION_ERROR` without a rule still reads "Invalid request".
+
 ## @dimah-s3/share@2.2.0
 
 ### Visitor calls can be refused per link and target
