@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -10,7 +11,6 @@ import {
   type DragEvent,
   type RefObject,
 } from "react";
-import { Dialog } from "@base-ui/react/dialog";
 import {
   useFormatError,
   useFormatNumber,
@@ -21,7 +21,24 @@ import {
 import { useTranslations } from "@fuma-translate/react";
 import { ChevronRightIcon, FolderInputIcon, HomeIcon } from "lucide-react";
 import { cn } from "cn";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
@@ -250,92 +267,87 @@ export function ObjectListMoveDialog<TItem>({
   }
 
   return (
-    <Dialog.Root
+    <Dialog
       open={request != null}
       onOpenChange={(open) => {
         if (!open && !moving) onClose();
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
-        <Dialog.Popup
-          data-slot="object-list-move-dialog"
-          initialFocus={moveButtonRef}
-          finalFocus={false}
-          aria-busy={moving || undefined}
-          className="fixed start-1/2 top-1/2 z-50 flex max-h-[min(32rem,calc(100dvh-2rem))] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-xl bg-dimah-s3-card p-4 text-dimah-s3-card-foreground ring-1 ring-dimah-s3-foreground/10 duration-100 outline-none rtl:translate-x-1/2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
-        >
-          <div className="flex flex-col gap-1">
-            <Dialog.Title className="text-base font-medium [overflow-wrap:anywhere]">
-              {entries.length === 1 && single
-                ? t('Move "{name}"', {
-                    note: "object list move",
-                    variables: { name: isolateText(single.name) },
-                  })
-                : t("Move {count} items", {
-                    note: "object list move",
-                    variables: { count: formatNumber(entries.length) },
-                  })}
-            </Dialog.Title>
-            <Dialog.Description className="text-sm text-dimah-s3-muted-foreground">
-              {t("Open a folder, then move here.", {
+      <DialogContent
+        data-slot="object-list-move-dialog"
+        showCloseButton={false}
+        initialFocus={moveButtonRef}
+        finalFocus={false}
+        aria-busy={moving || undefined}
+        className="flex max-h-[min(32rem,calc(100dvh-2rem))] flex-col gap-3 bg-dimah-s3-card text-dimah-s3-card-foreground ring-dimah-s3-foreground/10 sm:max-w-md"
+      >
+        <DialogHeader className="gap-1">
+          <DialogTitle className="leading-snug [overflow-wrap:anywhere]">
+            {entries.length === 1 && single
+              ? t('Move "{name}"', {
+                  note: "object list move",
+                  variables: { name: isolateText(single.name) },
+                })
+              : t("Move {count} items", {
+                  note: "object list move",
+                  variables: { count: formatNumber(entries.length) },
+                })}
+          </DialogTitle>
+          <DialogDescription className="text-dimah-s3-muted-foreground">
+            {t("Open a folder, then move here.", {
+              note: "object list move",
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <MovePath trail={trail} onNavigate={setTrail} />
+        <MoveFolders
+          parent={destinationId}
+          blocked={moved}
+          disabled={moving}
+          onOpen={(folder) =>
+            setTrail((path) => [...path, { id: folder.id, name: folder.name }])
+          }
+        />
+        <DialogFooter className="border-dimah-s3-border bg-dimah-s3-muted/50 sm:items-center">
+          {inside ? (
+            <p className="text-xs text-dimah-s3-muted-foreground sm:me-auto">
+              {t("A folder cannot move into itself.", {
                 note: "object list move",
               })}
-            </Dialog.Description>
-          </div>
-          <MovePath trail={trail} onNavigate={setTrail} />
-          <MoveFolders
-            parent={destinationId}
-            blocked={moved}
+            </p>
+          ) : null}
+          <DialogClose
             disabled={moving}
-            onOpen={(folder) =>
-              setTrail((path) => [
-                ...path,
-                { id: folder.id, name: folder.name },
-              ])
+            render={
+              <Button variant="outline" className="pointer-coarse:h-10" />
             }
-          />
-          <div className="-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t border-dimah-s3-border bg-dimah-s3-muted/50 p-4 sm:flex-row sm:items-center sm:justify-end">
-            {inside ? (
-              <p className="text-xs text-dimah-s3-muted-foreground sm:me-auto">
-                {t("A folder cannot move into itself.", {
-                  note: "object list move",
-                })}
-              </p>
-            ) : null}
-            <Dialog.Close
-              disabled={moving}
-              render={
-                <Button variant="outline" className="pointer-coarse:h-10" />
-              }
-            >
-              {t("Cancel", { note: "dialog button" })}
-            </Dialog.Close>
-            <Button
-              ref={moveButtonRef}
-              disabled={!canMove}
-              focusableWhenDisabled
-              // Focusable while disabled, so it dims by its data attribute.
-              className="pointer-coarse:h-10 data-disabled:opacity-50"
-              aria-busy={moving || undefined}
-              onClick={() => void onMove()}
-            >
-              {moving ? (
-                <Spinner
-                  data-icon="inline-start"
-                  aria-hidden
-                  aria-label={undefined}
-                  role={undefined}
-                />
-              ) : (
-                <FolderInputIcon data-icon="inline-start" />
-              )}
-              {t("Move here", { note: "object list move" })}
-            </Button>
-          </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+          >
+            {t("Cancel", { note: "dialog button" })}
+          </DialogClose>
+          <Button
+            ref={moveButtonRef}
+            disabled={!canMove}
+            focusableWhenDisabled
+            // Focusable while disabled, so it dims by its data attribute.
+            className="pointer-coarse:h-10 data-disabled:opacity-50"
+            aria-busy={moving || undefined}
+            onClick={() => void onMove()}
+          >
+            {moving ? (
+              <Spinner
+                data-icon="inline-start"
+                aria-hidden
+                aria-label={undefined}
+                role={undefined}
+              />
+            ) : (
+              <FolderInputIcon data-icon="inline-start" />
+            )}
+            {t("Move here", { note: "object list move" })}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -362,61 +374,54 @@ function MovePath({
   const t = useTranslations();
   const { rootLabel } = useObjectListContext();
   const crumb =
-    "flex min-w-0 max-w-40 items-center gap-1 rounded-sm px-1 outline-none hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:py-1.5";
+    "flex min-w-0 max-w-40 items-center gap-1 rounded-sm px-1 outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:py-1.5";
   return (
-    <nav aria-label={t("Folder path", { note: "object list" })}>
-      <ol className="flex min-w-0 flex-wrap items-center gap-1 text-sm text-dimah-s3-muted-foreground">
-        <li className="flex min-w-0 items-center">
+    <Breadcrumb aria-label={t("Folder path", { note: "object list" })}>
+      <BreadcrumbList className="min-w-0 gap-1 text-sm">
+        <BreadcrumbItem className="min-w-0">
           {trail.length === 0 ? (
-            <span
-              aria-current="page"
-              className="flex min-w-0 items-center gap-1 px-1 font-medium text-dimah-s3-foreground"
-            >
+            <BreadcrumbPage className="flex min-w-0 items-center gap-1 px-1 font-medium">
               <HomeIcon aria-hidden className="size-3.5 shrink-0" />
               <span className="truncate">{rootLabel}</span>
-            </span>
+            </BreadcrumbPage>
           ) : (
-            <button
-              type="button"
+            <BreadcrumbLink
               className={crumb}
+              render={<button type="button" />}
               onClick={() => onNavigate([])}
             >
               <HomeIcon aria-hidden className="size-3.5 shrink-0" />
               <span className="truncate">{rootLabel}</span>
-            </button>
+            </BreadcrumbLink>
           )}
-        </li>
+        </BreadcrumbItem>
         {trail.map((folder, index) => {
           const last = index === trail.length - 1;
           return (
-            <li key={folder.id} className="flex min-w-0 items-center gap-1">
-              <ChevronRightIcon
-                aria-hidden
-                className="size-3.5 shrink-0 rtl:rotate-180"
-              />
-              {last ? (
-                <span
-                  aria-current="page"
-                  className="truncate px-1 font-medium text-dimah-s3-foreground"
-                >
-                  <bdi>{folder.name}</bdi>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className={crumb}
-                  onClick={() => onNavigate(trail.slice(0, index + 1))}
-                >
-                  <span className="truncate">
+            <Fragment key={folder.id}>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem className="min-w-0">
+                {last ? (
+                  <BreadcrumbPage className="truncate px-1 font-medium">
                     <bdi>{folder.name}</bdi>
-                  </span>
-                </button>
-              )}
-            </li>
+                  </BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink
+                    className={crumb}
+                    render={<button type="button" />}
+                    onClick={() => onNavigate(trail.slice(0, index + 1))}
+                  >
+                    <span className="truncate">
+                      <bdi>{folder.name}</bdi>
+                    </span>
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
           );
         })}
-      </ol>
-    </nav>
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }
 

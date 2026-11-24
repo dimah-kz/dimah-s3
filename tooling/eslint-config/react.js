@@ -63,8 +63,13 @@ export const reactConfig = defineConfig(
     rules: {
       // shadcn primitives: association happens at the call site.
       "jsx-a11y/label-has-associated-control": "off",
-      // Synced from shadcn as is (`sync:shadcn`), so keep its import style.
+      // InputGroupAddon focuses its input on click; the input takes the keys.
+      "jsx-a11y/click-events-have-key-events": "off",
+      "jsx-a11y/no-noninteractive-element-interactions": "off",
+      // Synced from shadcn as is (`sync:shadcn`), so keep its code style.
       "@typescript-eslint/consistent-type-imports": "off",
+      "@typescript-eslint/no-import-type-side-effects": "off",
+      eqeqeq: "off",
     },
   },
 );

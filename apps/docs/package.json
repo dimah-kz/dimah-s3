@@ -36,6 +36,7 @@
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
+    "@dimah-s3/share": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@types/mdx": "^2.0.14",
     "@types/node": "catalog:",

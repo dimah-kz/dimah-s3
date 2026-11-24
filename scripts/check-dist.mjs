@@ -5,8 +5,9 @@
  * 1. Every `exports`, `bin` and `files` path in package.json exists, and every
  *    JS entry has its `types` file.
  * 2. Every runtime export of a JS entry is declared in that entry's types.
- * 3. `"use client"` starts the client entries (react and ui `dist/index.js`)
- *    and no other emitted JS file.
+ * 3. `"use client"` starts the client entries (react and ui `dist/index.js`,
+ *    ui `dist/share.js`, share `dist/react/index.js`) and no other emitted
+ *    JS file.
  * 4. `@dimah-s3/react/engine`, with every chunk it imports, imports no React
  *    module, no react entry re-exports a value from `@dimah-s3/core`, and
  *    the browser entry of `@dimah-s3/core` imports no Zod (the schemas live
@@ -29,7 +30,8 @@ const packagesDir = join(root, "packages");
 /** Entries whose output must start with `"use client"`, per package. */
 const CLIENT_ENTRIES = new Map([
   ["@dimah-s3/react", ["dist/index.js"]],
-  ["@dimah-s3/ui", ["dist/index.js"]],
+  ["@dimah-s3/share", ["dist/react/index.js"]],
+  ["@dimah-s3/ui", ["dist/index.js", "dist/share.js"]],
 ]);
 
 /** Entries that must stay free of React, per package. */

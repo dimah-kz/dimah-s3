@@ -4,7 +4,6 @@ import { dbObjectSource, type DbClientObject } from "@dimah-s3/db/client";
 import {
   useDelete,
   useDownload,
-  useFormatError,
   useObjectList,
   useObjectListSelection,
   useUpload,
@@ -21,20 +20,27 @@ import {
   ObjectListUsage,
   ObjectListViewToggle,
   UploadTrigger,
-  toast,
 } from "@dimah-s3/ui";
+import { useShareLinks } from "@dimah-s3/share/react";
+import { ShareLinkDialog, shareTargetOf } from "@dimah-s3/ui/share";
 import { Share2 } from "lucide-react";
+import { useState } from "react";
 import { s3Client } from "@/lib/s3-client";
 
 /**
  * Files and folders of the scope, from `storage_object` and
  * `storage_folder`. Uploads go to the open folder; usage and its caps come
- * from the server's `quota`. Each row's menu adds Share link, which creates
- * a 7-day link with `api.share.createLink` and copies it.
+ * from the server's `quota`. Each row's menu adds Share, which opens the
+ * row's share links in `ShareLinkDialog`.
  */
 export function FileManager() {
   const api = s3Client.useApi();
-  const formatError = useFormatError();
+  const [sharing, setSharing] = useState<ObjectListEntry<DbClientObject>>();
+  // The row's links, loaded each time its dialog opens.
+  const links = useShareLinks(
+    api.share,
+    sharing ? shareTargetOf(sharing) : null,
+  );
   const list = useObjectList({
     ...dbObjectSource(api.db, { route: "files" }),
     queryKey: ["files"],
@@ -45,63 +51,45 @@ export function FileManager() {
   const download = useDownload({ route: "files" });
   const del = useDelete({ route: "files" });
 
-  const shareEntry = async (entry: ObjectListEntry<DbClientObject>) => {
-    try {
-      const { link } = await api.share.createLink({
-        target:
-          entry.kind === "file"
-            ? { type: "object", key: entry.item.key, bucket: entry.item.bucket }
-            : { type: "folder", folderId: entry.id },
-      });
-      // `share({ url })` returns `/s/<token>`; copy it with this origin.
-      const url = new URL(link.url ?? `/s/${link.token}`, window.location.href);
-      await navigator.clipboard.writeText(url.href);
-      toast.add({
-        type: "success",
-        title: "Share link copied",
-        description: link.expiresAt
-          ? `It opens until ${new Date(link.expiresAt).toLocaleDateString()}.`
-          : "It never expires.",
-      });
-    } catch (error) {
-      toast.add({
-        type: "error",
-        title: "Could not share",
-        description: formatError(error),
-        priority: "high",
-      });
-    }
-  };
-
   return (
-    <ObjectList
-      list={list}
-      selection={selection}
-      upload={upload}
-      download={download}
-      delete={del}
-      height="32rem"
-      renderActions={(entry) => (
-        <ObjectListEntryMenu
-          actions={[
-            {
-              label: "Share link",
-              icon: <Share2 />,
-              onClick: () => void shareEntry(entry),
-            },
-          ]}
-        />
-      )}
-    >
-      <ObjectListHeader>
-        <ObjectListSearch className="max-sm:hidden" />
-        <ObjectListSortMenu />
-        <ObjectListViewToggle />
-        <UploadTrigger size="sm" />
-      </ObjectListHeader>
-      <ObjectListUsage />
-      <ObjectListUploadStatus />
-      <ObjectListContent />
-    </ObjectList>
+    <>
+      <ObjectList
+        list={list}
+        selection={selection}
+        upload={upload}
+        download={download}
+        delete={del}
+        height="32rem"
+        renderActions={(entry) => (
+          <ObjectListEntryMenu
+            actions={[
+              {
+                label: "Share",
+                icon: <Share2 />,
+                onClick: () => setSharing(entry),
+              },
+            ]}
+          />
+        )}
+      >
+        <ObjectListHeader>
+          <ObjectListSearch className="max-sm:hidden" />
+          <ObjectListSortMenu />
+          <ObjectListViewToggle />
+          <UploadTrigger size="sm" />
+        </ObjectListHeader>
+        <ObjectListUsage />
+        <ObjectListUploadStatus />
+        <ObjectListContent />
+      </ObjectList>
+      <ShareLinkDialog
+        links={links}
+        name={sharing?.name}
+        open={sharing !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setSharing(undefined);
+        }}
+      />
+    </>
   );
 }

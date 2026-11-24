@@ -40,6 +40,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./share": {
+      "types": "./dist/share.d.ts",
+      "default": "./dist/share.js"
+    },
     "./styles.css": "./styles.css",
     "./css/shadcn.css": "./css/shadcn.css",
     "./package.json": "./package.json"
@@ -68,6 +72,7 @@
     "@base-ui/react": "^1.9.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
+    "@dimah-s3/share": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
@@ -99,12 +104,18 @@
     "@base-ui/react": "^1.0.0",
     "@dimah-s3/core": "2.1.0",
     "@dimah-s3/react": "2.1.0",
+    "@dimah-s3/share": "2.1.0",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.0",
     "cn": "^0.5.2",
     "lucide-react": ">=0.400.0 <2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@dimah-s3/share": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22"

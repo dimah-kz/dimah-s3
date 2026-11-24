@@ -1,6 +1,6 @@
 import { packageConfig } from "@workspace/tsup-config";
 
 export default packageConfig({
-  entry: ["src/index.ts"],
-  clientEntries: ["index"],
+  entry: ["src/index.ts", "src/share.ts"],
+  clientEntries: ["index", "share"],
 });

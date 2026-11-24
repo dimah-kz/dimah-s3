@@ -7,7 +7,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type FormEvent,
+  type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
 } from "react";
@@ -30,6 +32,13 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { useDeleteContext } from "@/components/dimah-s3/delete/delete";
 import { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
@@ -547,6 +556,28 @@ function NewFolderForm({
     </Button>
   );
 
+  // The same field in either layout.
+  const inputProps = {
+    ref: inputRef,
+    id: inputId,
+    value: name,
+    maxLength: 255,
+    autoComplete: "off",
+    placeholder: label,
+    readOnly: pending,
+    "aria-invalid": error != null || undefined,
+    "aria-describedby": error != null ? errorId : undefined,
+    onChange: (event: ChangeEvent<HTMLInputElement>) => {
+      setName(event.target.value);
+      setError(null);
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== "Escape" || pending) return;
+      event.preventDefault();
+      onClose();
+    },
+  };
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
@@ -592,50 +623,26 @@ function NewFolderForm({
           wide ? "w-full" : "gap-1",
         )}
       >
-        <label htmlFor={inputId} className="sr-only">
+        <Label htmlFor={inputId} className="sr-only">
           {label}
-        </label>
+        </Label>
         {wide ? (
-          <FolderPlusIcon
-            aria-hidden
-            className="pointer-events-none absolute start-2.5 size-3.5 text-dimah-s3-muted-foreground"
-          />
-        ) : null}
-        <input
-          ref={inputRef}
-          id={inputId}
-          value={name}
-          maxLength={255}
-          autoComplete="off"
-          placeholder={label}
-          readOnly={pending}
-          aria-invalid={error != null || undefined}
-          aria-describedby={error != null ? errorId : undefined}
-          className={cn(
-            // 16px text on small screens, which iOS does not zoom into.
-            "min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-base text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 md:text-sm",
-            // Room at the end for the confirm and cancel buttons, as search does.
-            wide
-              ? "h-8 w-full ps-8 pe-16 pointer-coarse:h-9"
-              : "h-7 w-36 px-2 sm:w-44 pointer-coarse:h-9",
-          )}
-          onChange={(event) => {
-            setName(event.target.value);
-            setError(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape" || pending) return;
-            event.preventDefault();
-            onClose();
-          }}
-        />
-        {wide ? (
-          <div className="absolute inset-y-0 end-1.5 flex items-center gap-0.5">
-            {confirm}
-            {cancel}
-          </div>
+          <InputGroup className="h-8 border-dimah-s3-border pointer-coarse:h-9">
+            <InputGroupAddon>
+              <FolderPlusIcon aria-hidden className="size-3.5" />
+            </InputGroupAddon>
+            <InputGroupInput {...inputProps} />
+            <InputGroupAddon align="inline-end" className="gap-0.5">
+              {confirm}
+              {cancel}
+            </InputGroupAddon>
+          </InputGroup>
         ) : (
           <>
+            <Input
+              {...inputProps}
+              className="h-7 w-36 border-dimah-s3-border px-2 sm:w-44 pointer-coarse:h-9"
+            />
             {confirm}
             {cancel}
           </>

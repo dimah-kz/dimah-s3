@@ -1,6 +1,6 @@
 ---
 title: Share API
-description: share() options, the owner and visitor actions, s3.share on the server, hooks, authorize, and the SHARE_* error codes.
+description: share() options, the owner and visitor actions, s3.share on the server, hooks, authorize, authorizeVisit, and the SHARE_* error codes.
 ---
 
 The reference for [`@dimah-s3/share`](/docs/share). The plugin needs
@@ -31,7 +31,29 @@ share({
 `authorize` runs for every owner action after the caller's scope is
 resolved and the link or its target is known to be theirs, so it can only
 narrow access. db's own `authorize` runs before it, with
-`operation: "plugin"` and `plugin: { id: "share", action }`.
+`operation: "plugin"` and `plugin: { id: "share", action }`. On `listLinks`,
+`target` is the object or folder the list is filtered by; without `target`,
+the call lists every link of the scope, tokens included.
+
+`authorizeVisit` is the visitor side. It runs on `openLink` once the link is
+unlocked, and on `listShared`, `downloadShared`, and `sharedFile`, after the
+link is known to open and before anything is counted, listed, or sent. It
+sees the link, its target, and the folder or file the call reaches. `false`
+answers `SHARE_TARGET_UNAVAILABLE`, the same as a deleted target, so an item
+your app hides without deleting it, such as one in its trash, stops opening,
+and opens again once it is back:
+
+```ts title="lib/s3.ts"
+share({
+  client: dimahS3Share,
+  authorizeVisit: ({ folder }) => !folder?.path.split("/").includes("Trash"),
+});
+```
+
+It checks the call, not each row: a folder listing or search still shows a
+hidden file or subfolder by name, and opening or downloading that one is
+refused. A presigned download URL handed out before it turned `false` works
+until it expires; a proxy URL stops at once.
 
 The hooks run after the action. A throw fails the call, so catch errors in
 an analytics hook. Their contexts never carry the password hash.
@@ -67,6 +89,7 @@ and when a lifetime or a length is not a positive integer.
 | `downloadExpiresIn` | `number`                                                          | `300`                 | Lifetime of a visitor's download URL in seconds, capped by the route's `maxExpiresIn`         |
 | `unlockExpiresIn`   | `number`                                                          | `3600`                | Lifetime of an `access` proof in seconds                                                      |
 | `authorize`         | `(context: ShareAuthorizeContext) => boolean \| Promise<boolean>` | —                     | `false` rejects an owner action with `FORBIDDEN`                                              |
+| `authorizeVisit`    | `(context: ShareVisitContext) => boolean \| Promise<boolean>`     | —                     | `false` fails a visitor call with `SHARE_TARGET_UNAVAILABLE`                                  |
 | `onCreated`         | `(context) => void \| Promise<void>`                              | —                     | After a link is created. Context: `request`, `locals`, `scope`, `link`                        |
 | `onUpdated`         | `(context) => void \| Promise<void>`                              | —                     | After a link's settings change. Also `previous`                                               |
 | `onRevoked`         | `(context) => void \| Promise<void>`                              | —                     | After a link is revoked                                                                       |
@@ -77,15 +100,27 @@ and when a lifetime or a length is not a positive integer.
 
 Fields marked `?` are optional.
 
-| Property    | Type                                                                       | Description                                                     |
-| ----------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `action`    | `"createLink" \| "listLinks" \| "getLink" \| "updateLink" \| "revokeLink"` | The owner action                                                |
-| `scope`     | `string`                                                                   | The caller's db scope                                           |
-| `request`   | `Request`                                                                  | The request                                                     |
-| `locals`    | `DimahS3Locals`                                                            | What the guards returned                                        |
-| `target?`   | `{ type: "object"; object } \| { type: "folder"; folder }`                 | The db row the link points at, while it exists                  |
-| `link?`     | `ShareLink`                                                                | The link as it is, on `getLink`, `updateLink`, and `revokeLink` |
-| `settings?` | `{ expiresAt; passwordProtected; maxDownloads; label }`                    | The settings it will have, on `createLink` and `updateLink`     |
+| Property    | Type                                                                       | Description                                                                                     |
+| ----------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `action`    | `"createLink" \| "listLinks" \| "getLink" \| "updateLink" \| "revokeLink"` | The owner action                                                                                |
+| `scope`     | `string`                                                                   | The caller's db scope                                                                           |
+| `request`   | `Request`                                                                  | The request                                                                                     |
+| `locals`    | `DimahS3Locals`                                                            | What the guards returned                                                                        |
+| `target?`   | `{ type: "object"; object } \| { type: "folder"; folder }`                 | The db row the link points at, while it exists. On `listLinks`, the row the list is filtered by |
+| `link?`     | `ShareLink`                                                                | The link as it is, on `getLink`, `updateLink`, and `revokeLink`                                 |
+| `settings?` | `{ expiresAt; passwordProtected; maxDownloads; label }`                    | The settings it will have, on `createLink` and `updateLink`                                     |
+
+### ShareVisitContext
+
+| Property  | Type                                                             | Description                                                                                   |
+| --------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `action`  | `"openLink" \| "listShared" \| "downloadShared" \| "sharedFile"` | The visitor action                                                                            |
+| `link`    | `ShareLink`                                                      | The link, with its `scope`                                                                    |
+| `target`  | `{ type: "object"; object } \| { type: "folder"; folder }`       | The db row the link points at                                                                 |
+| `folder?` | `StorageFolder`                                                  | The folder `listShared` lists or searches, or the one that holds `object`. Absent at the root |
+| `object?` | `StorageObject`                                                  | The file `downloadShared` and `sharedFile` send, or an object link's file                     |
+| `request` | `Request`                                                        | The request                                                                                   |
+| `locals`  | `DimahS3Locals`                                                  | What the guards returned                                                                      |
 
 ### Client actions
 
@@ -171,6 +206,96 @@ The plugin's context on the server (`SharePluginContext`).
 | `pruneLinks`  | `(options: { olderThan: Date \| number }) => Promise<{ pruned; orphaned }>` | Removes links revoked or expired before `olderThan`, and links created before it whose target was deleted (`orphaned`). Reads every older live link |
 | `checkSchema` | `() => Promise<void>`                                                       | Throws unless the database is at share schema `1.0.0`. The first query runs it too                                                                  |
 
+### useShareLinks()
+
+`useShareLinks(api.share, target, options?)` from `@dimah-s3/share/react`
+keeps the links of one object or folder in React state, for an owner screen.
+`react` is an optional peer of `@dimah-s3/share`, needed only for this entry.
+A `null` target waits, so a dialog can pass its target only while it is
+open.
+
+```tsx
+"use client";
+
+import { useShareLinks } from "@dimah-s3/share/react";
+
+const api = s3Client.useApi();
+const { links, status, create, update, revoke } = useShareLinks(api.share, {
+  type: "object",
+  key,
+});
+await create({ maxDownloads: 3 });
+```
+
+| Option           | Type      | Default | Description                                                 |
+| ---------------- | --------- | ------- | ----------------------------------------------------------- |
+| `includeRevoked` | `boolean` | `false` | Also list revoked links, and keep a link once it is revoked |
+| `limit`          | `number`  | `100`   | Links per page, 1 to 100                                    |
+
+| Property        | Type                                                                          | Description                                                  |
+| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `target`        | `ShareTargetInput \| null`                                                    | The object or folder the links belong to                     |
+| `links`         | `readonly ShareClientLink[]`                                                  | The target's links, newest first                             |
+| `status`        | `"idle" \| "loading" \| "refreshing" \| "loading-more" \| "ready" \| "error"` | `idle` without a target, as in `useObjectList`               |
+| `error`         | `APIError \| null`                                                            | Why the last load failed, while `status` is `error`          |
+| `isLoading`     | `boolean`                                                                     | The first page is on its way, and there is nothing to show   |
+| `isRefreshing`  | `boolean`                                                                     | The first page loads again; `links` stay                     |
+| `isLoadingMore` | `boolean`                                                                     | The next page is on its way                                  |
+| `hasMore`       | `boolean`                                                                     | Another page follows                                         |
+| `loadMore`      | `() => Promise<void>`                                                         | Appends the next page; ignored while a load is on its way    |
+| `refresh`       | `() => Promise<void>`                                                         | Loads the first page again, keeping `links` until it arrives |
+| `retry`         | `() => Promise<void>`                                                         | Repeats the load that failed                                 |
+| `create`        | `(settings?) => Promise<ShareClientLink>`                                     | Creates a link to the target and puts it first               |
+| `update`        | `(id, settings) => Promise<ShareClientLink>`                                  | Changes a link's settings                                    |
+| `revoke`        | `(id) => Promise<ShareClientLink>`                                            | Turns a link off; it leaves `links` unless `includeRevoked`  |
+
+A failed load never rejects: it sets `error`, and a failed next page keeps
+the links already loaded. `create`, `update`, and `revoke` reject with an
+`APIError`, such as `VALIDATION_ERROR`. The
+[`ShareLinkDialog`](/docs/ui/components/share-link-dialog) takes the hook's
+return.
+
+### useShareVisit()
+
+`useShareVisit(api.share, token, options?)` from `@dimah-s3/share/react`
+holds the page a link opens, for a visitor without a session: it opens the
+link, unlocks it with the password, and downloads its files. Pass `link` from
+a server [`openLink`](#s3share) to render at once.
+
+```tsx
+"use client";
+
+import { useShareVisit } from "@dimah-s3/share/react";
+
+const visit = useShareVisit(s3Client.share, token);
+
+if (visit.status === "locked") await visit.unlock(password);
+if (visit.status === "ready") await visit.download(fileId);
+```
+
+| Option | Type               | Default | Description                                         |
+| ------ | ------------------ | ------- | --------------------------------------------------- |
+| `link` | `ShareVisitorLink` | —       | The link from a server `openLink`, for this `token` |
+
+| Property   | Type                                                        | Description                                                     |
+| ---------- | ----------------------------------------------------------- | --------------------------------------------------------------- |
+| `status`   | `"loading" \| "locked" \| "ready" \| "error"`               | Where the visit stands                                          |
+| `link`     | `ShareVisitorLockedLink \| ShareVisitorOpenLink \| null`    | The locked link while `locked`, the opened one while `ready`    |
+| `error`    | `APIError \| null`                                          | Why the link does not open, while `status` is `error`           |
+| `token`    | `string`                                                    | The token the visit is for                                      |
+| `access`   | `string \| undefined`                                       | The password proof from `unlock`; every later call sends it     |
+| `unlock`   | `(password) => Promise<void>`                               | Trades the password for `access`, then opens the link again     |
+| `download` | `(id?, { disposition? }) => Promise<ShareDownloadResponse>` | Sends the browser to a file and updates `link.downloadsLeft`    |
+| `refresh`  | `() => void`                                                | Opens the link again, such as after a network error             |
+| `source`   | `ShareObjectSource`                                         | A read-only `useObjectList` source over the link, with `access` |
+
+`status` tells the rest apart, so `visit.link` is the opened link inside
+`if (visit.status === "ready")`. A call that finds the link gone, such as a
+download after the owner revoked it, moves the visit to `error`; one whose
+password proof expired moves it back to `locked`. `unlock` and `download`
+reject with an `APIError`, such as `SHARE_PASSWORD_INVALID`. The
+[`SharedView`](/docs/ui/components/shared-view) takes the hook's return.
+
 ### shareObjectSource()
 
 `shareObjectSource(api.share, { token, access?, limit? })` from
@@ -179,23 +304,29 @@ lists one folder per page, searches every folder below the open one, and
 maps a file's `objectKey` to its share id.
 
 `downloadSharedFile(api.share, id, { token, access?, disposition?, signal? })`
-gets a download URL and navigates to it.
+gets a download URL, navigates to it, and resolves with the `downloadShared`
+response, so a page can show the new `downloadsLeft`.
 
 ### Errors
 
-| Situation                                                     | Status | Code                                   |
-| ------------------------------------------------------------- | ------ | -------------------------------------- |
-| No link has the token, or the owner asked for another scope's | `404`  | `SHARE_LINK_NOT_FOUND`                 |
-| The link expired                                              | `410`  | `SHARE_LINK_EXPIRED`                   |
-| The owner revoked it                                          | `410`  | `SHARE_LINK_REVOKED`                   |
-| It reached `maxDownloads`                                     | `410`  | `SHARE_LINK_EXHAUSTED`                 |
-| Its file or folder was deleted, or its route removed          | `410`  | `SHARE_TARGET_UNAVAILABLE`             |
-| A visitor call on a locked link without a valid `access`      | `401`  | `SHARE_PASSWORD_REQUIRED`              |
-| `unlockLink` with the wrong password                          | `401`  | `SHARE_PASSWORD_INVALID`               |
-| A folder link while `folders: false`                          | `400`  | `SHARE_FOLDER_LINKS_DISABLED`          |
-| A forged or expired `/share/file` URL                         | `403`  | `SHARE_DOWNLOAD_URL_INVALID`           |
-| A file or folder id outside the share                         | `404`  | `OBJECT_NOT_FOUND`, `FOLDER_NOT_FOUND` |
-| A route without downloads                                     | `404`  | `FEATURE_DISABLED`                     |
+| Situation                                                                      | Status | Code                                   |
+| ------------------------------------------------------------------------------ | ------ | -------------------------------------- |
+| No link has the token, or the owner asked for another scope's                  | `404`  | `SHARE_LINK_NOT_FOUND`                 |
+| The link expired                                                               | `410`  | `SHARE_LINK_EXPIRED`                   |
+| The owner revoked it                                                           | `410`  | `SHARE_LINK_REVOKED`                   |
+| It reached `maxDownloads`                                                      | `410`  | `SHARE_LINK_EXHAUSTED`                 |
+| Its file or folder was deleted, its route removed, or `authorizeVisit` refused | `410`  | `SHARE_TARGET_UNAVAILABLE`             |
+| A visitor call on a locked link without a valid `access`                       | `401`  | `SHARE_PASSWORD_REQUIRED`              |
+| `unlockLink` with the wrong password                                           | `401`  | `SHARE_PASSWORD_INVALID`               |
+| A folder link while `folders: false`                                           | `400`  | `SHARE_FOLDER_LINKS_DISABLED`          |
+| A forged or expired `/share/file` URL                                          | `403`  | `SHARE_DOWNLOAD_URL_INVALID`           |
+| A file or folder id outside the share                                          | `404`  | `OBJECT_NOT_FOUND`, `FOLDER_NOT_FOUND` |
+| A route without downloads                                                      | `404`  | `FEATURE_DISABLED`                     |
+
+The `SHARE_*` codes are in the core catalog, `S3_ERROR_CODES` from
+`@dimah-s3/core`, so [`useFormatError`](/docs/react/helpers#errors) words
+them with the rest, in your `translations`. `SHARE_ERROR_CODES` names the same
+entries.
 
 ## Frequently asked questions
 

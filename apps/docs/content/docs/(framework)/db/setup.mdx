@@ -321,15 +321,19 @@ routes: {
 
 The options of `db()`.
 
-| Prop           | Type                                                      | Default  | Description                                                                                    |
-| -------------- | --------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
-| `client`       | `DimahS3DbClient`                                         | required | `DimahS3Db.client(adapter)`                                                                    |
-| `resolveScope` | `(context: ScopeContext) => string \| null \| Promise<…>` | required | Owner scope of the caller, at most 255 characters; `null` rejects the call with `UNAUTHORIZED` |
-| `getSession`   | `(request: Request) => TSession \| Promise<TSession>`     | —        | Loads the session that `resolveScope`, `authorize`, and `quota` see; once per `Request`        |
-| `authorize`    | `(context: AuthorizeContext) => boolean \| Promise<…>`    | —        | Narrows access after the ownership check; `false` rejects the call with `FORBIDDEN`            |
-| `quota`        | `DbQuota \| (context) => DbQuota \| null \| Promise<…>`   | —        | Byte, file, and folder caps per scope ([Quota](/docs/db/api#quota))                            |
-| `deleteMode`   | `"soft" \| "hard"`                                        | `"soft"` | Keeps a `deleted` row, or removes it ([Deletes](/docs/db/lifecycle-hooks#deletes))             |
-| `attributes`   | `DbAttributesOptions`                                     | —        | Enables `attributes` on `PATCH /db/object` ([Attributes](/docs/db/api#attributes))             |
+| Prop              | Type                                                      | Default  | Description                                                                                                                         |
+| ----------------- | --------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `client`          | `DimahS3DbClient`                                         | required | `DimahS3Db.client(adapter)`                                                                                                         |
+| `resolveScope`    | `(context: ScopeContext) => string \| null \| Promise<…>` | required | Owner scope of the caller, at most 255 characters; `null` rejects the call with `UNAUTHORIZED`                                      |
+| `getSession`      | `(request: Request) => TSession \| Promise<TSession>`     | —        | Loads the session that `resolveScope`, `authorize`, and `quota` see; once per `Request`                                             |
+| `authorize`       | `(context: AuthorizeContext) => boolean \| Promise<…>`    | —        | Narrows access after the ownership check; `false` rejects the call with `FORBIDDEN`                                                 |
+| `quota`           | `DbQuota \| (context) => DbQuota \| null \| Promise<…>`   | —        | Byte, file, and folder caps per scope ([Quota](/docs/db/api#quota))                                                                 |
+| `deleteMode`      | `"soft" \| "hard"`                                        | `"soft"` | Keeps a `deleted` row, or removes it ([Deletes](/docs/db/lifecycle-hooks#deletes))                                                  |
+| `attributes`      | `DbAttributesOptions`                                     | —        | Enables `attributes` on `PATCH /db/object` ([Attributes](/docs/db/api#attributes))                                                  |
+| `onObjectUpdated` | `(context) => void \| Promise<void>`                      | —        | After `PATCH /db/object` renamed, moved, or set the attributes of an object ([Change hooks](/docs/db/lifecycle-hooks#change-hooks)) |
+| `onFolderCreated` | `(context) => void \| Promise<void>`                      | —        | After `POST /db/folder`                                                                                                             |
+| `onFolderUpdated` | `(context) => void \| Promise<void>`                      | —        | After `PATCH /db/folder` renamed or moved a folder                                                                                  |
+| `onFolderDeleted` | `(context) => void \| Promise<void>`                      | —        | After `DELETE /db/folder` removed a folder                                                                                          |
 
 ### DbRouteOptions
 
@@ -465,7 +469,9 @@ export const dimahS3Db = DimahS3Db.names
 ```
 
 `migrate` creates the schema, and so does `drizzle-kit` from the
-`storageSchema` export of the generated file. The generated Prisma models
+`storageSchema` export of the generated file. With
+[share links](/docs/share#create-the-table-step) in the same schema, list one file
+that re-exports both generated files, so `drizzle-kit` sees the schema once. The generated Prisma models
 carry `@@schema("storage")`: list it in the datasource, as in
 `schemas = ["public", "storage"]`. The settings table,
 `private_dimah_s3_settings`, stays in the search path.

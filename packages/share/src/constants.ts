@@ -15,6 +15,9 @@ export const SHARE_MAX_DOWNLOADS_LIMIT = 1_000_000;
 /** Longest password, in characters. */
 export const SHARE_PASSWORD_MAX_LENGTH = 256;
 
+/** Longest owner note (`label`) on a link, in characters. */
+export const SHARE_LABEL_MAX_LENGTH = 255;
+
 /**
  * Actions anyone holding a link may call, without a session: they read the
  * link, unlock it, list a shared folder, and download from it. Let them

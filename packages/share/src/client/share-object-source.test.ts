@@ -105,21 +105,24 @@ describe("shareObjectSource", () => {
 });
 
 describe("downloadSharedFile", () => {
-  it("fetches a URL for the file and navigates to it", async () => {
+  it("fetches a URL for the file, navigates to it, and returns the response", async () => {
     const assign = vi.fn();
     vi.stubGlobal("location", { assign });
-    const downloadShared = vi.fn(async () => ({
+    const response = {
       url: "https://bucket.test/a.txt?sig",
       mode: "presign" as const,
       expiresIn: 300,
       disposition: "attachment" as const,
-      downloadsLeft: null,
-    }));
+      downloadsLeft: 2,
+    };
+    const downloadShared = vi.fn(async () => response);
     try {
-      await downloadSharedFile({ downloadShared }, "o1", {
-        token: "tok",
-        disposition: "inline",
-      });
+      await expect(
+        downloadSharedFile({ downloadShared }, "o1", {
+          token: "tok",
+          disposition: "inline",
+        }),
+      ).resolves.toEqual(response);
     } finally {
       vi.unstubAllGlobals();
     }

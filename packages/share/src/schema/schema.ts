@@ -1,4 +1,5 @@
 import { column, idColumn, schema, table } from "fumadb/schema";
+import { SHARE_LABEL_MAX_LENGTH } from "@/constants";
 
 /**
  * MySQL collation of every text column: tokens, scopes, and ids compare
@@ -10,7 +11,7 @@ const BINARY = { mysql: "utf8mb4_bin" };
 export const SCOPE_MAX_LENGTH = 255;
 
 /** Longest owner label, in characters. */
-export const LABEL_MAX_LENGTH = 255;
+export const LABEL_MAX_LENGTH = SHARE_LABEL_MAX_LENGTH;
 
 function string(name: string, length = 255) {
   return column(name, `varchar(${length})`).collate(BINARY);

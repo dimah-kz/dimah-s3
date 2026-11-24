@@ -8,7 +8,7 @@ import type {
   DbClientListObjectsResponse,
   DbClientObject,
 } from "@/types/client";
-import type { DbAttributesOptions } from "@/types/plugin";
+import type { DbAttributesOptions, DbPluginOptions } from "@/types/plugin";
 import type { StorageFolder, StorageObject } from "@/types/storage-object";
 import type { AccessTarget, ObjectAccess } from "./object-access";
 import type { DbObjects } from "./public-stores";
@@ -46,6 +46,14 @@ export type CreateDatabaseEndpointsOptions<
   ) => DbClientObject<TClientAttributes>;
   /** The buckets the routes use, from the resolved routes. */
   buckets: () => ReadonlySet<string>;
+  /** The plugin's hooks that run after an endpoint saved its change. */
+  hooks?: Pick<
+    DbPluginOptions<TSession, TAttributes, TClientAttributes>,
+    | "onObjectUpdated"
+    | "onFolderCreated"
+    | "onFolderUpdated"
+    | "onFolderDeleted"
+  >;
 };
 
 /** The endpoints `db()` mounts, keyed by their `dbClient()` method names. */
@@ -126,6 +134,9 @@ function folderTarget(
  * - `POST /db/folder` (op `folder.create`), `PATCH /db/folder` (op
  *   `folder.update`), and `DELETE /db/folder` (op `folder.delete`): create
  *   a folder, rename or move it, or remove an empty one.
+ *
+ * The writes run `onObjectUpdated`, `onFolderCreated`, `onFolderUpdated`,
+ * and `onFolderDeleted` once their change is saved.
  */
 export function createDatabaseEndpoints<
   TSession,
@@ -138,7 +149,7 @@ export function createDatabaseEndpoints<
     TClientAttributes
   >,
 ) {
-  const { access, quota, resolveScope, toClientObject } = options;
+  const { access, quota, resolveScope, toClientObject, hooks = {} } = options;
   const { objects, folders } = options.store;
 
   /**
@@ -378,6 +389,11 @@ export function createDatabaseEndpoints<
           { name, folderId, attributes },
         );
         if (!updated) throw s3Error("OBJECT_NOT_FOUND");
+        await hooks.onObjectUpdated?.({
+          ...scope,
+          before: object,
+          after: updated,
+        });
         return { object: toClientObject(updated) };
       },
     ),
@@ -412,6 +428,7 @@ export function createDatabaseEndpoints<
           parentId,
           name: ctx.body.name,
         });
+        await hooks.onFolderCreated?.({ ...scope, folder });
         return { folder: toDbClientFolder(folder) };
       },
     ),
@@ -437,7 +454,7 @@ export function createDatabaseEndpoints<
           ctx.body.name ?? current.name,
         );
         if (path === null) throw s3Error("FOLDER_INVALID");
-        await access.scope(ctx.context, {
+        const scope = await access.scope(ctx.context, {
           operation: "folder.update",
           // The folder as it is, and where the call puts it.
           ...folderTarget(current),
@@ -447,6 +464,17 @@ export function createDatabaseEndpoints<
           ...(ctx.body.name !== undefined && { name: ctx.body.name }),
           ...(ctx.body.parentId !== undefined && { parentId }),
         });
+        // A call that changes nothing saves nothing, and says nothing.
+        if (
+          folder.path !== current.path ||
+          folder.parentId !== current.parentId
+        ) {
+          await hooks.onFolderUpdated?.({
+            ...scope,
+            before: current,
+            after: folder,
+          });
+        }
         return { folder: toDbClientFolder(folder) };
       },
     ),
@@ -465,13 +493,13 @@ export function createDatabaseEndpoints<
         });
         const current = await folders.find(peeked.scope, ctx.query.id);
         if (!current) return { id: ctx.query.id };
-        await access.scope(ctx.context, {
+        const scope = await access.scope(ctx.context, {
           operation: "folder.delete",
           ...folderTarget(current),
         });
-        await folders.delete(peeked.scope, current.id, {
-          recursive: ctx.query.recursive === true,
-        });
+        const recursive = ctx.query.recursive === true;
+        await folders.delete(peeked.scope, current.id, { recursive });
+        await hooks.onFolderDeleted?.({ ...scope, folder: current, recursive });
         return { id: current.id };
       },
     ),

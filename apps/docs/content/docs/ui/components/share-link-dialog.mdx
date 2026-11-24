@@ -1,0 +1,182 @@
+---
+title: Share Link Dialog
+description: An owner's dialog to create, copy, change, and turn off the share links of one file or folder.
+---
+
+import { ShareLinkDialogDemo } from "@/components/demos/share-link-dialog-demo";
+
+Let an owner share a file or folder from your file browser. `ShareLinkDialog`
+creates [share links](/docs/share) with a lifetime, an optional password,
+download limit, and note, copies them, and lists the links the item already
+has, with their status, downloads, and views. It needs `share()` on the server
+and `shareClient()` on the client.
+
+<DemoPreview name="share-link-dialog-demo.tsx">
+  <ShareLinkDialogDemo />
+</DemoPreview>
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```npm
+npm i @dimah-s3/share
+```
+
+```tsx
+import { useShareLinks } from "@dimah-s3/share/react";
+import { ShareLinkDialog, shareTargetOf } from "@dimah-s3/ui/share";
+```
+
+The share components have their own entry, so the main `@dimah-s3/ui` entry
+never needs `@dimah-s3/share`.
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/share-link-dialog
+```
+
+Adds `@/components/dimah-s3/share/share-link-dialog` and
+`share-link-fields`, and installs `@dimah-s3/share`.
+
+</Tab>
+
+</Tabs>
+
+## Usage
+
+Open it from a row of [`ObjectList`](/docs/ui/components/object-list):
+`shareTargetOf` turns a row into the link's target, and
+[`useShareLinks`](/docs/share/api#usesharelinks) loads that target's links.
+The dialog takes the hook's return, as `ObjectList` takes `useObjectList`'s.
+
+```tsx title="components/file-manager.tsx"
+"use client";
+
+import { dbObjectSource, type DbClientObject } from "@dimah-s3/db/client";
+import { useObjectList, type ObjectListEntry } from "@dimah-s3/react";
+import {
+  ObjectList,
+  ObjectListContent,
+  ObjectListEntryMenu,
+} from "@dimah-s3/ui";
+import { useShareLinks } from "@dimah-s3/share/react";
+import { ShareLinkDialog, shareTargetOf } from "@dimah-s3/ui/share";
+import { Share2 } from "lucide-react";
+import { useState } from "react";
+import { s3Client } from "@/lib/s3-client";
+
+export function FileManager() {
+  const api = s3Client.useApi();
+  const list = useObjectList({
+    ...dbObjectSource(api.db, { route: "files" }),
+    queryKey: ["files"],
+  });
+  const [sharing, setSharing] = useState<ObjectListEntry<DbClientObject>>();
+  const links = useShareLinks(
+    api.share,
+    sharing ? shareTargetOf(sharing) : null,
+  );
+
+  return (
+    <>
+      <ObjectList
+        list={list}
+        renderActions={(entry) => (
+          <ObjectListEntryMenu
+            actions={[
+              {
+                label: "Share",
+                icon: <Share2 />,
+                onClick: () => setSharing(entry),
+              },
+            ]}
+          />
+        )}
+      >
+        <ObjectListContent />
+      </ObjectList>
+      <ShareLinkDialog
+        links={links}
+        name={sharing?.name}
+        open={sharing !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setSharing(undefined);
+        }}
+      />
+    </>
+  );
+}
+```
+
+The hook waits while the target is `null`, so the links load each time the
+dialog opens; a dialog opened again on the same target loads them again. Every
+call runs as the signed-in owner, so your `share({ authorize })` decides what
+they may do.
+
+## Links
+
+- **Create link** creates a link with the form's settings and copies its URL.
+  The URL is `link.url`, from `share({ url })`. Without it, pass `linkUrl`.
+- Each row shows the URL, so it can be selected and copied by hand where the
+  browser does not let the page copy.
+- **Copy link** copies the URL again.
+- **Change link** edits the lifetime, password, download limit, and note.
+  An empty password field keeps the current password.
+- **Turn off link** revokes it, after a confirmation. A revoked link leaves
+  the list.
+
+`expiryOptions` sets the lifetimes the form offers, in seconds. Add `null`
+for a link that never expires, unless `share()` sets `expiration.max`. An
+error from the server, such as a lifetime past that maximum, shows under the
+form through [`useFormatError`](/docs/react/helpers#errors).
+
+A failed first load shows the error with **Try again**. A failed **Show more**
+keeps the rows on screen and shows the error under them.
+
+## Accessibility
+
+- The dialog is labelled by its title and described by its description. The
+  form and the list of links are each named.
+- Each form field has a label. Errors are announced with `role="alert"`.
+- A creation, a copy, a change, and a link turned off are announced in a
+  polite live region, including a copy the browser refused.
+- The row buttons are named: "Copy link", "Change link", "Turn off link".
+  "Change link" says whether its form is open (`aria-expanded`), and focus
+  returns to it when the form closes.
+- **Turn off link** asks in an alert dialog with focus on Cancel. Focus goes
+  back to the row, or to the list heading once the row left.
+- While a form is sent, its text fields turn read-only and its button stays
+  focusable, so focus never drops to the page.
+
+## API Reference
+
+### ShareLinkDialog
+
+| Prop            | Type                                                              | Default                    | Description                                                      |
+| --------------- | ----------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------- |
+| `links`         | `UseShareLinksReturn`                                             | required                   | `useShareLinks` for the item; closed while its `target` is null  |
+| `open`          | `boolean`                                                         | required                   | Whether the dialog is open                                       |
+| `onOpenChange`  | `(open: boolean) => void`                                         | required                   | Runs when the dialog asks to open or close                       |
+| `name`          | `string`                                                          | —                          | The item's name, for the title                                   |
+| `expiryOptions` | `readonly (number \| null)[]`                                     | `[86400, 604800, 2592000]` | Lifetimes a new link can pick, in seconds; the first is selected |
+| `linkUrl`       | `(token: string) => string`                                       | —                          | A link's URL when `share()` has no `url`                         |
+| `fields`        | `{ password?: boolean; maxDownloads?: boolean; label?: boolean }` | all on                     | Turn off an optional field                                       |
+| `className`     | `string`                                                          | —                          | Classes on the dialog popup                                      |
+
+### shareTargetOf()
+
+`shareTargetOf(entry, { bucket? })` returns the `ShareTargetInput` of an
+`ObjectList` row: `{ type: "object", key }` for a file, by its object key, and
+`{ type: "folder", folderId }` for a folder. Pass `bucket` when the routes use
+several buckets.
+
+### useShareLinks()
+
+The dialog takes `useShareLinks` from `@dimah-s3/share/react`. Use the hook
+for a screen of your own: see the [Share API](/docs/share/api#usesharelinks).

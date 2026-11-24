@@ -128,6 +128,18 @@ const objectListFiles: RegistryFile[] = [
   sourceFile("hooks/use-in-view.ts", "registry:hook"),
 ];
 
+const shareLinkDialogFiles: RegistryFile[] = [
+  sourceFile("components/dimah-s3/share/share-link-dialog.tsx"),
+  sourceFile("components/dimah-s3/share/share-link-fields.tsx"),
+  sourceFile("lib/isolate-text.ts", "registry:lib"),
+];
+
+/**
+ * The share components need `@dimah-s3/share/react` and the share codes in
+ * `useFormatError`, both new in 2.2.0.
+ */
+const shareDependency = "@dimah-s3/share@^2.2.0";
+
 /**
  * The `@dimah-s3/*` packages the copied source imports, with a range: a
  * bare name installs the `latest` dist-tag, which can be another major.
@@ -217,6 +229,26 @@ export const componentCssVars = {
 } satisfies RegistryItem["cssVars"];
 
 const toastRegistryDependencies = ["button", "toast"] as const;
+
+/** The stock primitives `ObjectList` and its parts draw. */
+const objectListRegistryDependencies = [
+  "alert-dialog",
+  "attachment",
+  "breadcrumb",
+  "button",
+  "checkbox",
+  "dialog",
+  "dropdown-menu",
+  "empty",
+  "input",
+  "input-group",
+  "label",
+  "skeleton",
+  "spinner",
+  "toast",
+  "toggle-group",
+  "tooltip",
+] as const;
 
 const installMeta = {
   dependencies: [...componentDependencies],
@@ -351,22 +383,55 @@ export const components: Registry["items"] = [
     description:
       "Composable file and folder browser: list and grid views, search, sort, folders, selection with bulk move and delete, drop upload with folders, image thumbnails, and a file menu.",
     ...glyphInstallMeta,
-    // The Move dialog is a Base UI dialog of its own.
-    dependencies: [...glyphInstallMeta.dependencies, "@base-ui/react"],
+    registryDependencies: [...objectListRegistryDependencies],
+    files: files(
+      objectListFiles,
+      [objectImageFile],
+      uploadFamilyFiles,
+      downloadFiles,
+      deleteFiles,
+    ),
+  },
+  {
+    name: "share-link-dialog",
+    type: "registry:component",
+    title: "Share Link Dialog",
+    description:
+      "Owner dialog for the share links of one file or folder: create a link with a lifetime, password, download limit, and note, copy it, and change or turn off its links.",
+    ...installMeta,
+    dependencies: [...componentDependencies, shareDependency],
     registryDependencies: [
+      "alert",
       "alert-dialog",
-      "attachment",
-      "breadcrumb",
+      "badge",
       "button",
       "checkbox",
-      "dropdown-menu",
+      "dialog",
       "empty",
-      "skeleton",
+      "field",
+      "input",
+      "item",
+      "select",
       "spinner",
-      "toast",
-      "tooltip",
+    ],
+    files: [...shareLinkDialogFiles],
+  },
+  {
+    name: "shared-view",
+    type: "registry:component",
+    title: "Shared View",
+    description:
+      "The page a share link opens: password form, the shared file with its download, or the shared folder in a read-only Object List, and a message for a link that does not open.",
+    ...glyphInstallMeta,
+    dependencies: [...glyphInstallMeta.dependencies, shareDependency],
+    registryDependencies: [
+      ...objectListRegistryDependencies,
+      "alert",
+      "field",
+      "item",
     ],
     files: files(
+      [sourceFile("components/dimah-s3/share/shared-view.tsx")],
       objectListFiles,
       [objectImageFile],
       uploadFamilyFiles,

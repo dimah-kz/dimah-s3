@@ -157,6 +157,12 @@ export function db<
       toClientObject,
       buckets: () =>
         new Set(Object.values(env?.routes ?? {}).map((route) => route.bucket)),
+      hooks: {
+        onObjectUpdated: options.onObjectUpdated,
+        onFolderCreated: options.onFolderCreated,
+        onFolderUpdated: options.onFolderUpdated,
+        onFolderDeleted: options.onFolderDeleted,
+      },
     }),
     context: {
       objects: stores.objects,

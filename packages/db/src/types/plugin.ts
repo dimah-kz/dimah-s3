@@ -2,7 +2,7 @@ import type { DimahS3Locals } from "@dimah-s3/server";
 import type { DimahS3DbClient } from "@/fuma-db";
 import type { StandardSchemaV1 } from "@/standard-schema";
 import type { DbQuota } from "./client";
-import type { StorageObject } from "./storage-object";
+import type { StorageFolder, StorageObject } from "./storage-object";
 
 /**
  * What a scope is resolved for.
@@ -105,6 +105,56 @@ export type AuthorizeContext<
   object?: StorageObject<TAttributes>;
 };
 
+/**
+ * A change a db endpoint saved: the caller's resolved scope context, with
+ * the `operation` of the call.
+ */
+export type DbChangeContext<TSession = undefined> = ScopeContext<TSession> & {
+  scope: string;
+};
+
+/** Context of `onObjectUpdated`: `PATCH /db/object`. */
+export type DbObjectUpdatedContext<
+  TSession = undefined,
+  TAttributes = never,
+> = DbChangeContext<TSession> & {
+  /** The row before the change. */
+  before: StorageObject<TAttributes>;
+  /** The row after it: a new `name`, `folderId`, or `attributes`. */
+  after: StorageObject<TAttributes>;
+};
+
+/** Context of `onFolderCreated`: `POST /db/folder`. */
+export type DbFolderCreatedContext<TSession = undefined> =
+  DbChangeContext<TSession> & { folder: StorageFolder };
+
+/** Context of `onFolderUpdated`: `PATCH /db/folder`, a rename or a move. */
+export type DbFolderUpdatedContext<TSession = undefined> =
+  DbChangeContext<TSession> & {
+    /** The folder before the change. */
+    before: StorageFolder;
+    /**
+     * The folder after it. The folders below it keep their ids; their paths
+     * follow it.
+     */
+    after: StorageFolder;
+  };
+
+/** Context of `onFolderDeleted`: `DELETE /db/folder`. */
+export type DbFolderDeletedContext<TSession = undefined> =
+  DbChangeContext<TSession> & {
+    /** The folder the call removed. */
+    folder: StorageFolder;
+    /** `true` when the empty folders below it went too. */
+    recursive: boolean;
+  };
+
+/**
+ * A hook that runs after a db endpoint saved its change. A throw fails the
+ * call; the change stays.
+ */
+export type DbHook<C> = (context: C) => void | Promise<void>;
+
 /** Per-route options under `plugins: { db: … }`. */
 export type DbRouteOptions = {
   /**
@@ -183,4 +233,21 @@ export type DbPluginOptions<
   deleteMode?: "soft" | "hard";
   /** Enables `attributes` on `PATCH /db/object`. */
   attributes?: DbAttributesOptions<TAttributes, TClientAttributes>;
+  /**
+   * After `PATCH /db/object` renamed, moved, or set the attributes of an
+   * object. The db endpoint hooks run once the change is saved, for calls
+   * from `dbClient()`. `s3.db.objects` and `s3.db.folders` do not run them:
+   * those are your own writes. A throw fails the call; the change stays.
+   */
+  onObjectUpdated?: DbHook<DbObjectUpdatedContext<TSession, TAttributes>>;
+  /** After `POST /db/folder` created a folder. */
+  onFolderCreated?: DbHook<DbFolderCreatedContext<TSession>>;
+  /** After `PATCH /db/folder` renamed or moved a folder. A call that changes nothing does not run it. */
+  onFolderUpdated?: DbHook<DbFolderUpdatedContext<TSession>>;
+  /**
+   * After `DELETE /db/folder` removed a folder. A missing folder does not
+   * run it; two calls at once for the same folder can each run it, so key
+   * what it writes by the folder's `id`.
+   */
+  onFolderDeleted?: DbHook<DbFolderDeletedContext<TSession>>;
 };

@@ -2,6 +2,7 @@ import { SHARE_LIST_MAX_LIMIT } from "@/constants";
 import type {
   ShareAccess,
   ShareClientActions,
+  ShareDownloadResponse,
   ShareListSharedInput,
   ShareListSort,
   ShareListSortField,
@@ -206,6 +207,8 @@ export type DownloadSharedFileOptions = {
 /**
  * Gets a download URL for one shared file and sends the browser to it. The
  * URL is short-lived, so it is fetched on each click. Counts one download.
+ * Resolves with the `downloadShared` response, so a page can show the new
+ * `downloadsLeft` without another `openLink`.
  *
  * ```tsx
  * <button onClick={() => downloadSharedFile(s3Client.share, file.id, { token, access })}>
@@ -217,8 +220,8 @@ export async function downloadSharedFile(
   share: Pick<ShareClientActions, "downloadShared">,
   id: string | undefined,
   options: DownloadSharedFileOptions,
-): Promise<void> {
-  const { url } = await share.downloadShared(
+): Promise<ShareDownloadResponse> {
+  const response = await share.downloadShared(
     {
       token: options.token,
       ...(id !== undefined && { id }),
@@ -233,5 +236,6 @@ export async function downloadSharedFile(
   const { location } = globalThis as unknown as {
     location: { assign: (url: string) => void };
   };
-  location.assign(url);
+  location.assign(response.url);
+  return response;
 }

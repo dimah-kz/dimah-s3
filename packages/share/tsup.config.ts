@@ -7,7 +7,13 @@ const { version } = createRequire(import.meta.url)("./package.json") as {
 };
 
 export default packageConfig({
-  entry: ["src/index.ts", "src/cli.ts", "src/client/index.ts"],
+  entry: [
+    "src/index.ts",
+    "src/cli.ts",
+    "src/client/index.ts",
+    "src/react/index.ts",
+  ],
+  clientEntries: ["react/index"],
   define: {
     __DIMAH_S3_SHARE_VERSION__: JSON.stringify(version),
   },

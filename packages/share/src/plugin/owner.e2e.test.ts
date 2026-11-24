@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createShareTest, type ShareTestOptions } from "@/test/instance";
+import type { ShareAuthorizeContext } from "@/types/options";
 
 let test: Awaited<ReturnType<typeof createShareTest>> | undefined;
 
@@ -239,6 +240,76 @@ describe("listLinks", () => {
       as("1"),
     );
     expect(notMine.links).toEqual([]);
+  });
+
+  it("shows authorize the object or folder a list is filtered by", async () => {
+    const dbAuthorize = vi.fn(() => true);
+    const authorize = vi.fn((_context: ShareAuthorizeContext) => true);
+    const { client, put, folder, as } = await setup({ dbAuthorize, authorize });
+    const key = await put("1", "a.txt");
+    const docs = await folder("1", "Docs");
+
+    await client.share.listLinks({}, as("1"));
+    expect(authorize.mock.lastCall?.[0]).not.toHaveProperty("target");
+
+    dbAuthorize.mockClear();
+    await client.share.listLinks({ target: { type: "object", key } }, as("1"));
+    expect(dbAuthorize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plugin: { id: "share", action: "listLinks" },
+        key,
+      }),
+    );
+    expect(authorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "listLinks",
+        target: { type: "object", object: expect.objectContaining({ key }) },
+      }),
+    );
+
+    await client.share.listLinks(
+      { target: { type: "folder", folderId: docs } },
+      as("1"),
+    );
+    expect(dbAuthorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        plugin: { id: "share", action: "listLinks" },
+        folder: "Docs",
+        folderId: docs,
+      }),
+    );
+    expect(authorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        target: {
+          type: "folder",
+          folder: expect.objectContaining({ id: docs }),
+        },
+      }),
+    );
+
+    // Lists of one target pass, a list of the whole scope does not.
+    authorize.mockImplementation((context) => context.target !== undefined);
+    await expect(client.share.listLinks({}, as("1"))).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(
+      client.share.listLinks({ target: { type: "object", key } }, as("1")),
+    ).resolves.toMatchObject({ links: [] });
+
+    // A filter that names nothing of the caller's lists nothing.
+    authorize.mockClear();
+    const other = await put("2", "b.txt");
+    const notMine = await client.share.listLinks(
+      { target: { type: "object", key: other } },
+      as("1"),
+    );
+    expect(notMine.links).toEqual([]);
+    const missing = await client.share.listLinks(
+      { target: { type: "folder", folderId: "missing" } },
+      as("1"),
+    );
+    expect(missing.links).toEqual([]);
+    expect(authorize).not.toHaveBeenCalled();
   });
 
   it("hides revoked links unless asked", async () => {

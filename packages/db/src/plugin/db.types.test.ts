@@ -26,4 +26,23 @@ describe("db() attribute types", () => {
     });
     expect(plugin.id).toBe("db");
   });
+
+  it("types the change hooks by the session and the stored attributes", () => {
+    const plugin = db({
+      client: memoryDbClient(),
+      getSession: () => ({ userId: "1" }),
+      resolveScope: ({ session }) => `user:${session.userId}`,
+      attributes: { schema },
+      onObjectUpdated: ({ session, before, after }) => {
+        expectTypeOf(session).toEqualTypeOf<{ userId: string }>();
+        expectTypeOf(before).toEqualTypeOf<StorageObject<Attributes>>();
+        expectTypeOf(after.attributes).toEqualTypeOf<Attributes | null>();
+      },
+      onFolderDeleted: ({ folder, recursive }) => {
+        expectTypeOf(folder.path).toBeString();
+        expectTypeOf(recursive).toBeBoolean();
+      },
+    });
+    expect(plugin.id).toBe("db");
+  });
 });

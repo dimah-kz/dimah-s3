@@ -78,6 +78,18 @@ npx drizzle-kit push
 
 Add the new file to `schema` in `drizzle.config.ts`.
 
+With a PostgreSQL schema, such as `DimahS3Share.names.schema("storage")`,
+both generated files declare `storageSchema`, and `drizzle-kit` stops at
+"There's a duplicate schema name". Point `drizzle.config.ts` at one file
+that re-exports both and keeps one declaration:
+
+```ts title="db/schema.ts"
+export * from "./dimah-s3";
+export * from "./dimah-s3-share";
+// Both files declare these: drizzle-kit reads the tables, not the relations.
+export { relations, storageSchema } from "./dimah-s3";
+```
+
 </Tab>
 <Tab value="Prisma">
 
@@ -162,8 +174,9 @@ dimahS3({
 
 <Callout type="warn" title="Rate-limit unlockLink">
   The password hash slows each guess, but nothing stops a script from trying
-  many. Limit `unlockLink` per IP in your guard: `context.plugin?.action ===
-  "unlockLink"`.
+  many. Limit `unlockLink` per IP in your guard (`context.plugin?.action ===
+  "unlockLink"`), and refuse with `throw s3Error("TOO_MANY_REQUESTS")`, which
+  `useFormatError` words for the visitor.
 </Callout>
 
 ### Add the client plugin [step]
@@ -201,6 +214,12 @@ Each link reports a `status`: `active`, `expired`, `revoked`, or
 `exhausted`, plus `downloadCount`, `viewCount`, and `lastAccessedAt`. A
 link whose file or folder was deleted has `target.available: false`.
 
+In React, [`useShareLinks`](/docs/share/api#usesharelinks) keeps one target's
+links in state, and [`ShareLinkDialog`](/docs/ui/components/share-link-dialog)
+is the owner's dialog that takes it. On the shared page,
+[`useShareVisit`](/docs/share/api#usesharevisit) does the same for a visitor,
+under [`SharedView`](/docs/ui/components/shared-view).
+
 On the server, `s3.share.api` runs the same actions with
 `{ request }`, and `s3.share.links` reads and revokes rows without
 guards. Remove dead rows from a job:
@@ -222,6 +241,11 @@ back under the same id, so those links can never open again.
     title="The shared page"
     href="/docs/share/visitor-page"
     description="Open a link, ask for its password, list the folder, and download."
+  />
+  <Card
+    title="Share link components"
+    href="/docs/ui/components/share-link-dialog"
+    description="The owner's dialog and the shared page, ready to drop in."
   />
   <Card
     title="Share API"

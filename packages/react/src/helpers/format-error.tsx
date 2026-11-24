@@ -70,6 +70,10 @@ export function useFormatError(): (error: unknown) => string {
           return t("Another change happened at the same time. Try again.", {
             note: "API error",
           });
+        case "TOO_MANY_REQUESTS":
+          return t("Too many requests. Try again later.", {
+            note: "API error",
+          });
         case "INTERNAL_ERROR":
         case "HOOK_FAILED":
         case "UNKNOWN_ERROR":
@@ -178,6 +182,30 @@ export function useFormatError(): (error: unknown) => string {
           });
         case "FOLDER_NOT_EMPTY":
           return t("Folder is not empty", { note: "API error" });
+        case "SHARE_LINK_NOT_FOUND":
+          return t("Link not found", { note: "API error" });
+        case "SHARE_LINK_EXPIRED":
+          return t("This link has expired", { note: "API error" });
+        case "SHARE_LINK_REVOKED":
+          return t("This link was turned off", { note: "API error" });
+        case "SHARE_LINK_EXHAUSTED":
+          return t("This link reached its download limit", {
+            note: "API error",
+          });
+        case "SHARE_TARGET_UNAVAILABLE":
+          return t("The shared item is no longer available", {
+            note: "API error",
+          });
+        case "SHARE_PASSWORD_REQUIRED":
+          return t("This link needs a password", { note: "API error" });
+        case "SHARE_PASSWORD_INVALID":
+          return t("Wrong password", { note: "API error" });
+        case "SHARE_FOLDER_LINKS_DISABLED":
+          return t("Folder links are turned off", { note: "API error" });
+        case "SHARE_DOWNLOAD_URL_INVALID":
+          return t("Download link is invalid or has expired", {
+            note: "API error",
+          });
         case "TOO_MANY_FILES": {
           const maxFiles = count("maxFiles");
           return maxFiles
