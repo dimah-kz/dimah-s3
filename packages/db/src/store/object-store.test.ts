@@ -500,6 +500,64 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       ).resolves.toEqual({ totalBytes: 150, objectCount: 2 });
     });
 
+    it("keeps the larger size of an overwrite in flight, and the stored size once it lapsed", async () => {
+      await insertObject(client(), {
+        key: "growing",
+        size: 10,
+        declaredSize: 400,
+        uploadToken: "t1",
+        expiresAt: inAMinute(),
+      });
+      await insertObject(client(), {
+        key: "shrinking",
+        size: 300,
+        declaredSize: 20,
+        uploadToken: "t2",
+        expiresAt: inAMinute(),
+      });
+      await insertObject(client(), {
+        key: "lapsed",
+        size: 40,
+        declaredSize: 500,
+        uploadToken: "t3",
+        expiresAt: aMinuteAgo(),
+      });
+      await expect(store().usage("user:1")).resolves.toEqual({
+        totalBytes: 740,
+        objectCount: 3,
+      });
+    });
+
+    it("sums each folder on its own", async () => {
+      await seed();
+      await insertObject(client(), { key: "d2", size: 7, folderId: "docs" });
+      await insertObject(client(), {
+        key: "p1",
+        status: "pending",
+        declaredSize: 5,
+        expiresAt: inAMinute(),
+        folderId: "photos",
+      });
+      await insertObject(client(), {
+        key: "p2",
+        size: 2,
+        declaredSize: 60,
+        uploadToken: "t1",
+        expiresAt: inAMinute(),
+        folderId: "photos",
+      });
+      const usage = await store().usageByFolder("user:1", [
+        "docs",
+        "photos",
+        "empty",
+        "docs",
+      ]);
+      expect(Object.fromEntries(usage)).toEqual({
+        docs: { totalBytes: 107, objectCount: 2 },
+        photos: { totalBytes: 65, objectCount: 2 },
+      });
+    });
+
     it("counts the live rows like usage does, without reading them", async () => {
       await seed();
       const usage = await store().usage("user:1");

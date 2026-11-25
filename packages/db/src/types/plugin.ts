@@ -256,8 +256,8 @@ export type DbPluginOptions<
   onFolderUpdated?: DbHook<DbFolderUpdatedContext<TSession>>;
   /**
    * After `DELETE /db/folder` removed a folder. A missing folder does not
-   * run it; two calls at once for the same folder can each run it, so key
-   * what it writes by the folder's `id`.
+   * run it, and of two calls at once for the same folder, only the one that
+   * removed it does.
    */
   onFolderDeleted?: DbHook<DbFolderDeletedContext<TSession>>;
 };

@@ -148,6 +148,35 @@ describe.each(testDatabases)("link store ($name)", (factory) => {
     });
   });
 
+  it("counts every one of concurrent views", async () => {
+    const link = await links().create(input());
+    await Promise.all(Array.from({ length: 6 }, () => links().countView(link)));
+    await expect(links().findById(link.id)).resolves.toMatchObject({
+      viewCount: 6,
+    });
+  });
+
+  it("counts concurrent downloads up to the limit, and no further", async () => {
+    const link = await links().create(input({ maxDownloads: 5 }));
+    const results = await Promise.allSettled(
+      Array.from({ length: 8 }, () => links().countDownload(link)),
+    );
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(5);
+    // The rest are refused for the limit, not for a lost race.
+    expect(
+      results.flatMap((result) =>
+        result.status === "rejected"
+          ? [(result.reason as { code?: string }).code]
+          : [],
+      ),
+    ).toEqual(Array(3).fill("SHARE_LINK_EXHAUSTED"));
+    await expect(links().findById(link.id)).resolves.toMatchObject({
+      downloadCount: 5,
+    });
+  });
+
   it("revokes every link to a target", async () => {
     await links().create(input());
     await links().create(input());

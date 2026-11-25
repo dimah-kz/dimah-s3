@@ -70,7 +70,8 @@ an analytics hook. Their contexts never carry the password hash.
 - A revoked link stops handing out download URLs at once. A presigned URL
   already handed out works until `downloadExpiresIn` passes.
 - A download counts when its URL is handed out, not when the bytes arrive.
-  The limit is a compare-and-set, so concurrent downloads never pass it.
+  The count and the limit check are one statement, so concurrent downloads
+  each count and never pass the limit.
 - `access` proofs and `/share/file` URLs are signed with the instance secret
   (`DIMAH_S3_SECRET`). Rotating it keeps them valid while the old secret is
   still in the list.
@@ -182,7 +183,7 @@ longest lifetime then fails `expiration.max`. Sending both fails with
 | `expiresAt`         | `string \| null`                                    | ISO date                                                               |
 | `maxDownloads`      | `number \| null`                                    | The download limit                                                     |
 | `downloadCount`     | `number`                                            | Download URLs handed out                                               |
-| `viewCount`         | `number`                                            | Unlocked opens. Concurrent opens can miss a count                      |
+| `viewCount`         | `number`                                            | Unlocked opens, each one counted                                       |
 | `lastAccessedAt`    | `string \| null`                                    | Last open or download                                                  |
 | `revokedAt`         | `string \| null`                                    | When it was turned off                                                 |
 | `createdAt`         | `string`                                            | ISO date                                                               |

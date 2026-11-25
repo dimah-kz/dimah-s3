@@ -79,16 +79,28 @@ npx drizzle-kit push
 Add the new file to `schema` in `drizzle.config.ts`.
 
 With a PostgreSQL schema, such as `DimahS3Share.names.schema("storage")`,
-both generated files declare `storageSchema`, and `drizzle-kit` stops at
-"There's a duplicate schema name". Point `drizzle.config.ts` at one file
-that re-exports both and keeps one declaration:
+two generated files would each declare `storageSchema`, and `drizzle-kit`
+stops at "There's a duplicate schema name". Generate both libraries into
+one file with `generateSchema` from `@dimah-s3/db/cli`, which declares the
+schema once:
 
-```ts title="db/schema.ts"
-export * from "./dimah-s3";
-export * from "./dimah-s3-share";
-// Both files declare these: drizzle-kit reads the tables, not the relations.
-export { relations, storageSchema } from "./dimah-s3";
+```ts title="scripts/dimah-s3-schema.ts"
+import { writeFileSync } from "node:fs";
+import { DimahS3Db } from "@dimah-s3/db";
+import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
+import { generateSchema } from "@dimah-s3/db/cli";
+import { DimahS3Share } from "@dimah-s3/share";
+
+const adapter = drizzleAdapter({ db: undefined, provider: "postgresql" });
+const { code } = generateSchema([
+  DimahS3Db.names.schema("storage").client(adapter),
+  DimahS3Share.names.schema("storage").client(adapter),
+]);
+writeFileSync("db/dimah-s3.ts", code);
 ```
+
+Then list only `db/dimah-s3.ts` in `drizzle.config.ts`, and pass its
+`relations` to `drizzle()` as they are.
 
 </Tab>
 <Tab value="Prisma">

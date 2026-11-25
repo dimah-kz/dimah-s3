@@ -273,7 +273,8 @@ export function memoryDbClient(
     },
     async updateMany(table: TableName, query: { where?: Where; set: Row }) {
       await tick();
-      for (const row of select(table, query.where)) {
+      const matched = select(table, query.where);
+      for (const row of matched) {
         const previous = { ...row };
         for (const [name, value] of Object.entries(query.set)) {
           if (value !== undefined) row[name] = structuredClone(value);
@@ -285,11 +286,61 @@ export function memoryDbClient(
           throw error;
         }
       }
+      return { count: matched.length };
     },
     async deleteMany(table: TableName, query: { where?: Where } = {}) {
       await tick();
       const removed = new Set(select(table, query.where));
       tables[table] = tables[table].filter((row) => !removed.has(row));
+      return { count: removed.size };
+    },
+    /** `count` and `sum`, optionally per `groupBy`; a sum of no value is `null`. */
+    async aggregate(
+      table: TableName,
+      query: {
+        where?: Where;
+        groupBy?: string[];
+        count?: boolean;
+        sum?: string[];
+      },
+    ) {
+      await tick();
+      const groups = new Map<string, Row[]>();
+      for (const row of select(table, query.where)) {
+        const key = JSON.stringify(
+          (query.groupBy ?? []).map((column) => row[column] ?? null),
+        );
+        groups.set(key, [...(groups.get(key) ?? []), row]);
+      }
+      const summarize = (rows: Row[]) => ({
+        ...(query.count && { count: rows.length }),
+        ...(query.sum && {
+          sum: Object.fromEntries(
+            query.sum.map((column) => {
+              const values = rows
+                .map((row) => row[column])
+                .filter((value) => value != null) as (number | bigint)[];
+              if (values.length === 0) return [column, null];
+              return [
+                column,
+                typeof values[0] === "bigint"
+                  ? (values as bigint[]).reduce((a, b) => a + b, 0n)
+                  : (values as number[]).reduce((a, b) => a + b, 0),
+              ];
+            }),
+          ),
+        }),
+      });
+      if (!query.groupBy) return summarize([...groups.values()].flat());
+      return [...groups.values()].map((rows) => ({
+        group: Object.fromEntries(
+          (query.groupBy ?? []).map((column) => [
+            column,
+            structuredClone(rows[0]?.[column] ?? null),
+          ]),
+        ),
+        ...summarize(rows),
+      }));
     },
     upsert(
       table: TableName,

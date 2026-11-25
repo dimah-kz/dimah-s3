@@ -1,10 +1,18 @@
 import { base64UrlDecode, base64UrlEncode, s3Error } from "@dimah-s3/core";
 import { UniqueConstraintError } from "fumadb";
-import type { AbstractQuery, FindManyOptions } from "fumadb/query";
+import {
+  increment,
+  type AbstractQuery,
+  type FindManyOptions,
+} from "fumadb/query";
 import { SHARE_ERROR_CODES } from "@/error-codes";
 import { SHARE_LIST_DEFAULT_LIMIT } from "@/constants";
 import type { shareSchema } from "@/schema/schema";
-import type { ShareLink, ShareLinkTarget } from "@/types/link";
+import {
+  shareLinkStatus,
+  type ShareLink,
+  type ShareLinkTarget,
+} from "@/types/link";
 
 /** The FumaDB ORM for the share schema. */
 export type ShareOrm = AbstractQuery<typeof shareSchema>;
@@ -19,9 +27,6 @@ type LinkConditions = Parameters<
 >[0];
 
 type Condition = ReturnType<LinkConditions> | boolean;
-
-/** Times a counted download retries after a concurrent one won. */
-const COUNT_ATTEMPTS = 5;
 
 /** Rows one `prune` or `listOld` query reads at a time. */
 const BATCH_SIZE = 500;
@@ -45,7 +50,6 @@ type ShareLinkRow = {
   maxDownloads: number | bigint | null;
   downloadCount: number | bigint;
   viewCount: number | bigint;
-  writeToken: string | null;
   lastAccessedAt: Date | null;
   revokedAt: Date | null;
   createdAt: Date;
@@ -118,15 +122,16 @@ export type ShareLinkStore = {
     id: string,
   ) => Promise<{ record: ShareLinkRecord; revoked: boolean } | null>;
   /**
-   * Counts one download as a compare-and-set on `download_count`, while the
-   * link is not revoked, has not expired, and is under `maxDownloads`.
-   * Returns the row with the new count.
-   * @throws `SHARE_LINK_EXHAUSTED` when the limit is reached meanwhile,
-   * `SHARE_LINK_NOT_FOUND` when the row changed state, or `CONFLICT` when
-   * concurrent downloads kept winning.
+   * Counts one download in one statement, while the link is not revoked,
+   * has not expired, and is under `maxDownloads`, so concurrent downloads
+   * are all counted and never pass the limit. Returns the row after it.
+   * @throws `SHARE_LINK_REVOKED`, `SHARE_LINK_EXPIRED`, or
+   * `SHARE_LINK_EXHAUSTED` for the state that kept it from counting,
+   * `SHARE_LINK_NOT_FOUND` when the row is gone, or `CONFLICT` when the
+   * link changed back meanwhile.
    */
   countDownload: (link: ShareLinkRecord) => Promise<ShareLinkRecord>;
-  /** Counts one view, best effort: a concurrent view can win. */
+  /** Counts one view. Concurrent views are all counted. */
   countView: (link: ShareLinkRecord) => Promise<void>;
   /** Revokes every live link to one object or folder. Returns how many. */
   revokeTarget: (target: ShareLinkTarget) => Promise<number>;
@@ -205,11 +210,6 @@ function decodeCursor(value: string): LinkCursor | null {
   return null;
 }
 
-/** A new write token: 12 random bytes in base64url. */
-function newWriteToken(): string {
-  return base64UrlEncode(crypto.getRandomValues(new Uint8Array(12)));
-}
-
 /** Creates the `share_link` store over `getOrm`. */
 export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
   const findById = async (id: string) => {
@@ -223,10 +223,10 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
   const deleteMany = async (ids: readonly string[]) => {
     if (ids.length === 0) return 0;
     const orm = await getOrm();
-    const where = (b: LinkConditions) => b("id", "in", [...ids]);
-    const present = await orm.count("shareLink", { where });
-    await orm.deleteMany("shareLink", { where });
-    return present;
+    const { count } = await orm.deleteMany("shareLink", {
+      where: (b) => b("id", "in", [...ids]),
+    });
+    return count;
   };
 
   const filterConditions = (
@@ -335,7 +335,7 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
 
     async update(id, input) {
       const orm = await getOrm();
-      await orm.updateMany("shareLink", {
+      const { count } = await orm.updateMany("shareLink", {
         where: (b) => b.and(b("id", "=", id), b.isNull("revokedAt")),
         set: {
           ...(input.label !== undefined && { label: input.label }),
@@ -349,6 +349,7 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
           updatedAt: new Date(),
         },
       });
+      if (count === 0) return null;
       const row = await findById(id);
       return row && row.revokedAt === null ? row : null;
     },
@@ -356,98 +357,73 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
     async revoke(id) {
       const orm = await getOrm();
       const now = new Date();
-      const token = newWriteToken();
-      await orm.updateMany("shareLink", {
+      const { count } = await orm.updateMany("shareLink", {
         where: (b) => b.and(b("id", "=", id), b.isNull("revokedAt")),
-        set: { revokedAt: now, updatedAt: now, writeToken: token },
+        set: { revokedAt: now, updatedAt: now },
       });
-      const row = await orm.findFirst("shareLink", {
-        where: (b) => b("id", "=", id),
-      });
-      if (!row) return null;
-      // Only the call whose write landed sees its own token.
-      return { record: mapRow(row), revoked: row.writeToken === token };
+      const record = await findById(id);
+      if (!record) return null;
+      // Only the call whose write matched turned it off.
+      return { record, revoked: count > 0 };
     },
 
     async countDownload(link) {
       const orm = await getOrm();
-      let current = link;
-      for (let attempt = 0; attempt < COUNT_ATTEMPTS; attempt++) {
-        if (current.revokedAt !== null) {
-          throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_REVOKED);
-        }
-        if (
-          current.maxDownloads !== null &&
-          current.downloadCount >= current.maxDownloads
-        ) {
-          throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_EXHAUSTED);
-        }
-        const now = new Date();
-        if (current.expiresAt !== null && current.expiresAt <= now) {
-          throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_EXPIRED);
-        }
-        const token = newWriteToken();
-        const seen = current;
-        await orm.updateMany("shareLink", {
-          // The row as it was checked: a new count, limit, or expiry, or a
-          // revoke in between, leaves no match.
-          where: (b) =>
-            b.and(
-              b("id", "=", seen.id),
-              b("downloadCount", "=", seen.downloadCount),
-              seen.maxDownloads === null
-                ? b.isNull("maxDownloads")
-                : b("maxDownloads", "=", seen.maxDownloads),
-              seen.expiresAt === null
-                ? b.isNull("expiresAt")
-                : b("expiresAt", "=", seen.expiresAt),
-              b.isNull("revokedAt"),
+      const now = new Date();
+      // One statement: a revoke, an expiry, or the limit reached meanwhile
+      // leaves no match, and concurrent downloads each add one.
+      const { count } = await orm.updateMany("shareLink", {
+        where: (b) =>
+          b.and(
+            b("id", "=", link.id),
+            b.isNull("revokedAt"),
+            b.or(b.isNull("expiresAt"), b("expiresAt", ">", now)),
+            b.or(
+              b.isNull("maxDownloads"),
+              b("downloadCount", "<", b.ref("maxDownloads")),
             ),
-          set: {
-            downloadCount: seen.downloadCount + 1,
-            writeToken: token,
-            lastAccessedAt: now,
-          },
-        });
-        const row = await orm.findFirst("shareLink", {
-          where: (b) => b("id", "=", current.id),
-        });
-        if (!row) throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_NOT_FOUND);
-        if (row.writeToken === token) return mapRow(row);
-        // Another download, or a change to the link, won; read it again.
-        current = mapRow(row);
+          ),
+        set: { downloadCount: increment(1), lastAccessedAt: now },
+      });
+      const current = await findById(link.id);
+      if (!current) throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_NOT_FOUND);
+      if (count > 0) return current;
+      switch (shareLinkStatus(current, now)) {
+        case "revoked":
+          throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_REVOKED);
+        case "expired":
+          throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_EXPIRED);
+        case "exhausted":
+          throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_EXHAUSTED);
+        case "active":
+          // The owner raised the limit or the expiry right after the write.
+          throw s3Error("CONFLICT");
       }
-      throw s3Error("CONFLICT");
     },
 
     async countView(link) {
       const orm = await getOrm();
       await orm.updateMany("shareLink", {
-        where: (b) =>
-          b.and(b("id", "=", link.id), b("viewCount", "=", link.viewCount)),
-        set: { viewCount: link.viewCount + 1, lastAccessedAt: new Date() },
+        where: (b) => b("id", "=", link.id),
+        set: { viewCount: increment(1), lastAccessedAt: new Date() },
       });
     },
 
     async revokeTarget(target) {
       const orm = await getOrm();
       const now = new Date();
-      const where = (b: LinkConditions) =>
-        b.and(
-          b("targetType", "=", target.type),
-          target.type === "object"
-            ? b("objectId", "=", target.objectId)
-            : b("folderId", "=", target.folderId),
-          b.isNull("revokedAt"),
-        );
-      const revoked = await orm.count("shareLink", { where });
-      if (revoked > 0) {
-        await orm.updateMany("shareLink", {
-          where,
-          set: { revokedAt: now, updatedAt: now },
-        });
-      }
-      return revoked;
+      const { count } = await orm.updateMany("shareLink", {
+        where: (b) =>
+          b.and(
+            b("targetType", "=", target.type),
+            target.type === "object"
+              ? b("objectId", "=", target.objectId)
+              : b("folderId", "=", target.folderId),
+            b.isNull("revokedAt"),
+          ),
+        set: { revokedAt: now, updatedAt: now },
+      });
+      return count;
     },
 
     async prune(olderThan) {
