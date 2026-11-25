@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { testDatabases, useTestDatabase } from "@/test/databases";
+import { shareLinkStatus, type ShareLinkStatus } from "@/types/link";
 import type { CreateLinkInput } from "./link-store";
 import { createShareStore } from "./create-share-store";
 
@@ -175,6 +176,85 @@ describe.each(testDatabases)("link store ($name)", (factory) => {
     await expect(links().findById(link.id)).resolves.toMatchObject({
       downloadCount: 5,
     });
+  });
+
+  it("filters by status, as shareLinkStatus tells them apart", async () => {
+    const past = () => new Date(Date.now() - 1000);
+    const active = await links().create(input({ maxDownloads: 2 }));
+    const unlimited = await links().create(input());
+    const expired = await links().create(input({ expiresAt: past() }));
+    const exhausted = await links().create(input({ maxDownloads: 1 }));
+    await links().countDownload(exhausted);
+    // Two downloads, then the owner lowers the limit below them.
+    const lowered = await links().create(input({ maxDownloads: 5 }));
+    await links().countDownload(lowered);
+    await links().countDownload(lowered);
+    await links().update(lowered.id, { maxDownloads: 1 });
+    // Revoked wins over expired.
+    const revoked = await links().create(input({ expiresAt: past() }));
+    await links().revoke(revoked.id);
+
+    const ids = async (status: ShareLinkStatus | ShareLinkStatus[]) =>
+      (await links().list("user:1", { status, limit: 10 })).links
+        .map((link) => link.id)
+        .sort();
+    await expect(ids("active")).resolves.toEqual(
+      [active.id, unlimited.id].sort(),
+    );
+    await expect(ids("expired")).resolves.toEqual([expired.id]);
+    await expect(ids("exhausted")).resolves.toEqual(
+      [exhausted.id, lowered.id].sort(),
+    );
+    await expect(ids("revoked")).resolves.toEqual([revoked.id]);
+    await expect(ids(["expired", "revoked"])).resolves.toEqual(
+      [expired.id, revoked.id].sort(),
+    );
+    await expect(ids([])).resolves.toEqual([]);
+
+    // The query and shareLinkStatus agree on every row.
+    const all = await links().list("user:1", {
+      includeRevoked: true,
+      limit: 10,
+    });
+    for (const link of all.links) {
+      await expect(ids(shareLinkStatus(link))).resolves.toContain(link.id);
+    }
+
+    await expect(links().count("user:1", { status: "active" })).resolves.toBe(
+      2,
+    );
+    await expect(
+      links().count("user:1", {
+        status: ["active", "expired", "exhausted", "revoked"],
+      }),
+    ).resolves.toBe(6);
+    // An explicit status wins over includeRevoked.
+    await expect(
+      links().count("user:1", { status: "active", includeRevoked: true }),
+    ).resolves.toBe(2);
+    await expect(
+      links().count("user:1", { status: "revoked", includeRevoked: false }),
+    ).resolves.toBe(1);
+  });
+
+  it("pages a status filter", async () => {
+    const created = [];
+    for (let index = 0; index < 3; index++) {
+      created.push(await links().create(input()));
+    }
+    await links().revoke(created[1].id);
+    const first = await links().list("user:1", { status: "active", limit: 1 });
+    const second = await links().list("user:1", {
+      status: "active",
+      limit: 1,
+      cursor: first.nextCursor,
+    });
+    expect(first.links).toHaveLength(1);
+    // Links made in the same millisecond page by id, not creation order.
+    expect(
+      [...first.links, ...second.links].map((link) => link.id).sort(),
+    ).toEqual([created[0].id, created[2].id].sort());
+    expect(second.nextCursor).toBeNull();
   });
 
   it("revokes every link to a target", async () => {

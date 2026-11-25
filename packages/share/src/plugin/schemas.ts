@@ -48,6 +48,25 @@ const queryBoolean = z.codec(
   },
 );
 
+/** The statuses a link can have, as `shareLinkStatus` names them. */
+const statusSchema = z.enum(["active", "expired", "exhausted", "revoked"]);
+
+/**
+ * `status` of `GET /share/links`: one status or a comma-separated list on
+ * the wire; `s3.share.api` may pass an array.
+ */
+const statusQuery = z.codec(
+  z.union([z.string(), z.array(z.string())]),
+  z.array(statusSchema).min(1).max(4),
+  {
+    decode: (value) =>
+      (typeof value === "string" ? value.split(",") : value).map((status) =>
+        status.trim(),
+      ) as z.output<typeof statusSchema>[],
+    encode: (value) => value.join(","),
+  },
+);
+
 /** A link token: base64url, as the plugin makes them. */
 export const shareTokenSchema = z
   .string()
@@ -148,6 +167,7 @@ export const listLinksQuerySchema = z
     bucket: trimmedString.optional(),
     folderId: trimmedString.optional(),
     includeRevoked: queryBoolean.optional(),
+    status: statusQuery.optional(),
     limit: queryInt(z.int().min(1).max(SHARE_LIST_MAX_LIMIT)).default(
       SHARE_LIST_DEFAULT_LIMIT,
     ),

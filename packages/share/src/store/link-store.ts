@@ -11,6 +11,7 @@ import type { shareSchema } from "@/schema/schema";
 import {
   shareLinkStatus,
   type ShareLink,
+  type ShareLinkStatus,
   type ShareLinkTarget,
 } from "@/types/link";
 
@@ -81,8 +82,14 @@ export type LinkFilter = {
   objectId?: string;
   /** Only links to this `storage_folder` id. */
   folderId?: string;
-  /** Also list revoked links. @default false */
+  /** Also list revoked links. Ignored with `status`. @default false */
   includeRevoked?: boolean;
+  /**
+   * Only links in this status or these statuses, at the time of the call,
+   * the way `shareLinkStatus` tells them apart. Takes precedence over
+   * `includeRevoked`.
+   */
+  status?: ShareLinkStatus | readonly ShareLinkStatus[];
 };
 
 export type ListLinksInput = LinkFilter & {
@@ -210,6 +217,44 @@ function decodeCursor(value: string): LinkCursor | null {
   return null;
 }
 
+/**
+ * The rows `shareLinkStatus` gives `status` at `now`, in its order: revoked
+ * wins over expired, and expired over exhausted. Each case spells out its
+ * nulls, since SQL's `NOT` of a comparison with a null is unknown.
+ */
+function statusCondition(
+  b: LinkConditions,
+  status: ShareLinkStatus,
+  now: Date,
+): Condition {
+  if (status === "revoked") return b.isNotNull("revokedAt");
+  const open = b.or(b.isNull("expiresAt"), b("expiresAt", ">", now));
+  switch (status) {
+    case "expired":
+      return b.and(
+        b.isNull("revokedAt"),
+        b.isNotNull("expiresAt"),
+        b("expiresAt", "<=", now),
+      );
+    case "exhausted":
+      return b.and(
+        b.isNull("revokedAt"),
+        open,
+        b.isNotNull("maxDownloads"),
+        b("downloadCount", ">=", b.ref("maxDownloads")),
+      );
+    case "active":
+      return b.and(
+        b.isNull("revokedAt"),
+        open,
+        b.or(
+          b.isNull("maxDownloads"),
+          b("downloadCount", "<", b.ref("maxDownloads")),
+        ),
+      );
+  }
+}
+
 /** Creates the `share_link` store over `getOrm`. */
 export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
   const findById = async (id: string) => {
@@ -233,6 +278,7 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
     b: LinkConditions,
     scope: string,
     filter: LinkFilter,
+    now: Date,
   ): Condition[] => {
     const parts: Condition[] = [b("scope", "=", scope)];
     if (filter.objectId !== undefined) {
@@ -243,7 +289,17 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
       parts.push(b("targetType", "=", "folder"));
       parts.push(b("folderId", "=", filter.folderId));
     }
-    if (filter.includeRevoked !== true) parts.push(b.isNull("revokedAt"));
+    if (filter.status !== undefined) {
+      const statuses: readonly ShareLinkStatus[] =
+        typeof filter.status === "string" ? [filter.status] : filter.status;
+      parts.push(
+        statuses.length === 0
+          ? false
+          : b.or(...statuses.map((status) => statusCondition(b, status, now))),
+      );
+    } else if (filter.includeRevoked !== true) {
+      parts.push(b.isNull("revokedAt"));
+    }
     return parts;
   };
 
@@ -262,9 +318,10 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
       const orm = await getOrm();
       const limit = input.limit ?? SHARE_LIST_DEFAULT_LIMIT;
       const cursor = input.cursor ? decodeCursor(input.cursor) : null;
+      const now = new Date();
       const rows = await orm.findMany("shareLink", {
         where: (b) => {
-          const parts = filterConditions(b, scope, input);
+          const parts = filterConditions(b, scope, input, now);
           if (cursor) {
             parts.push(
               b.or(
@@ -298,8 +355,9 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
 
     async count(scope, filter = {}) {
       const orm = await getOrm();
+      const now = new Date();
       return orm.count("shareLink", {
-        where: (b) => b.and(...filterConditions(b, scope, filter)),
+        where: (b) => b.and(...filterConditions(b, scope, filter, now)),
       });
     },
 

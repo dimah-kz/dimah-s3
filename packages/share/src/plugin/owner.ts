@@ -258,6 +258,7 @@ export function createOwnerOperations(
         objectId: target?.type === "object" ? target.object.id : undefined,
         folderId: target?.type === "folder" ? target.folder.id : undefined,
         includeRevoked: query.includeRevoked,
+        status: query.status,
         limit: query.limit,
         cursor: query.cursor,
       });

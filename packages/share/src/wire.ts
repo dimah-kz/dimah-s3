@@ -4,9 +4,18 @@
  */
 import type { ShareListLinksInput, ShareListSharedInput } from "@/types/client";
 
-/** `GET /share/links` query: the target filter is flat on the wire. */
+/**
+ * `GET /share/links` query: the target filter is flat on the wire, and
+ * several statuses are one comma-separated value.
+ */
 export function listLinksQuery(input: ShareListLinksInput = {}) {
-  const { target, ...rest } = input;
+  const { target, status, ...options } = input;
+  const rest = {
+    ...options,
+    ...(status !== undefined && {
+      status: typeof status === "string" ? status : status.join(","),
+    }),
+  };
   if (target === undefined) return rest;
   return target.type === "object"
     ? {

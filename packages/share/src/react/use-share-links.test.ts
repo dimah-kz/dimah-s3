@@ -124,6 +124,58 @@ describe("useShareLinks", () => {
     ]);
   });
 
+  it("lists only the statuses asked for, and keeps the rows to them", async () => {
+    const share = fakeShare({ "": [link("1"), link("2")] });
+    share.updateLink.mockResolvedValueOnce({
+      link: link("2", { status: "exhausted", maxDownloads: 0 }),
+    });
+    const { result, rerender } = renderHook(
+      ({ status }) => useShareLinks(share, file, { status }),
+      {
+        initialProps: {
+          status: ["active", "expired"] as ("active" | "expired")[],
+        },
+      },
+    );
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(share.listLinks).toHaveBeenCalledWith(
+      {
+        target: file,
+        includeRevoked: false,
+        status: ["active", "expired"],
+        limit: 100,
+      },
+      expect.anything(),
+    );
+    // The same statuses in another order do not load again.
+    rerender({ status: ["expired", "active"] });
+    expect(share.listLinks).toHaveBeenCalledTimes(1);
+
+    // A change or a revoke that moves a link out of them takes it out.
+    await act(async () => {
+      await result.current.update("2", { maxDownloads: 1 });
+    });
+    expect(result.current.links.map((row) => row.id)).toEqual(["1"]);
+    await act(async () => {
+      await result.current.revoke("1");
+    });
+    expect(result.current.links).toEqual([]);
+  });
+
+  it("keeps a revoked link when status has revoked", async () => {
+    const share = fakeShare({ "": [link("1")] });
+    const { result } = renderHook(() =>
+      useShareLinks(share, file, { status: ["active", "revoked"] }),
+    );
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    await act(async () => {
+      await result.current.revoke("1");
+    });
+    expect(result.current.links).toMatchObject([
+      { id: "1", status: "revoked" },
+    ]);
+  });
+
   it("pages with loadMore and reports a failed load", async () => {
     const share = fakeShare({ "": [link("1")], second: [link("2")] });
     const { result } = renderHook(() => useShareLinks(share, file));
