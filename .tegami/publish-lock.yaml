@@ -1,47 +1,52 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@dimah-s3/core\":\n    type: minor\n  \"@dimah-s3/react\":\n    type: minor\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### useFormatError words the share() rules\n\nA link setting that breaks a `share()` rule still fails with `VALIDATION_ERROR`, and its `params` now name the rule, so `useFormatError` says what to change instead of \"Invalid request\". `ShareLinkDialog` shows it under the form. [Policy](https://s3.dimah.dev/docs/share/api#policy).\n\n- **`params.rule`.** `passwordRequired`, `passwordTooShort` (with `minLength`), `expiryRequired`, `expiryInPast`, or `expiryTooLong` (with `maxExpiresIn`, in seconds). `params.issue` and the message are unchanged. The `VALIDATION_ERROR` entry of `S3ErrorParamsMap` types them.\n- **`useFormatError`.** Words each rule, such as \"Use at least 8 characters for the password\" and \"Choose an expiry of at most 7 days\", under keys your `translations` can localize, such as `\"Use at least {minLength} characters for the password(API error)\"`. A `VALIDATION_ERROR` without a rule still reads \"Invalid request\".\n"
-    filename: 2026-11-24-share-rule-errors.md
+  - content: "---\npackages:\n  \"@dimah-s3/server\":\n    type: patch\n  \"@dimah-s3/cli\":\n    type: patch\n---\n\n### Current dependencies\n\n`@dimah-s3/server` and the starters that `@dimah-s3/cli` scaffolds move to the latest patch and minor releases of their dependencies.\n\n- **`@dimah-s3/server`** depends on `@aws-sdk/s3-presigned-post` and `@aws-sdk/s3-request-presigner` `^3.1177.0`.\n- **`@dimah-s3/cli`** scaffolds the Next.js, Vite, and Hono starters with `@aws-sdk/client-s3` `^3.1176.0` and `lucide-react` `^1.79.0`, and the Vite and Hono starters with `hono` `^4.13.21`.\n"
+    filename: 2026-11-25-dependency-updates.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### Change hooks get what the call loaded\n\nThe change hooks pass the rows their call already loaded, so an activity log or a search index no longer loads them again, and cannot race a concurrent move or delete. [Share API](https://s3.dimah.dev/docs/share/api#authorize-and-hooks), [change hooks](https://s3.dimah.dev/docs/db/lifecycle-hooks#change-hooks).\n\n- **`share()` `onCreated`, `onUpdated`, `onRevoked`.** `ShareLinkEventContext` has `target`, the object or folder the link points at, as `onOpened` has. It is absent on an update or a revoke once that object or folder is gone.\n- **`db()` `onObjectUpdated`.** `DbObjectUpdatedContext` has `folder`, the path of the folder the object was in (`null` at the root, absent once that folder is gone), and `destination` when the call named a `folderId`, with the shapes `authorize` sees.\n"
-    filename: 2026-11-24-change-hook-targets.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### onFolderDeleted runs once\n\nOf two `DELETE /db/folder` calls at once for the same folder, only the one that removed it runs `onFolderDeleted`. Before, both could run it.\n\n- **`s3.db.folders.delete`.** Resolves `true` when the call removed the folder, and `false` when it was already gone, also when a concurrent delete removed it first. It resolved `undefined` before.\n"
+    filename: 2026-11-25-folder-delete-once.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n  \"@dimah-s3/ui\":\n    type: minor\n---\n\n### Share links take a lifetime\n\n`createLink` and `updateLink` take `expiresIn`, the link's lifetime in whole seconds. The server adds it to its own clock and checks it against `expiration.max`, so a browser clock that runs ahead no longer makes the longest lifetime fail. [createLink input](https://s3.dimah.dev/docs/share/api#createlink-input).\n\n- **`expiresIn`.** An integer of at least 1, on `shareClient()`, `s3.share.api`, and `POST` / `PATCH /share/link`. It is an alternative to `expiresAt`: sending both fails with `VALIDATION_ERROR`. `expiresAt: null` still means the link never expires.\n- **`ShareLinkDialog`.** Sends the picked `expiryOptions` lifetime as `expiresIn`, so `expiration.max` can equal the longest option without a margin. Keep `@dimah-s3/share` and `@dimah-s3/ui` on the same version: an older `share()` refuses `expiresIn`.\n- **Registry.** `share-link-dialog` and `shared-view` install `@dimah-s3/share@^2.3.0`.\n"
-    filename: 2026-11-24-share-expires-in.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### Built on FumaDB 0.8\n\n`@dimah-s3/db` and `@dimah-s3/share` depend on `fumadb` `~0.8.0`. The adapters from `@dimah-s3/db/adapters/*` are FumaDB 0.8's.\n\n- **Your own `fumadb`.** If your app depends on `fumadb` itself, move it to 0.8 as well, so the adapters and the clients come from one copy.\n- **Drizzle on MySQL.** The Drizzle schema that `runCli` generates for `@dimah-s3/share` on MySQL loads: its `integer` columns are declared with `int()`, which `drizzle-orm/mysql-core` exports. Generate it again if you use MySQL with Drizzle.\n"
+    filename: 2026-11-25-fumadb-0-8.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: minor\n---\n\n### Slots on the ObjectList header bar and row names\n\n`ObjectList` marks two more parts with `data-slot`, so an app can style them without selecting internal utility classes. No visual change.\n\n- **`object-list-header-bar`.** The header's bar that holds the path and the controls.\n- **`object-list-entry-name`.** The name of a row, and of a tile in the grid view.\n"
-    filename: 2026-11-24-object-list-slots.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### One schema file for db and share\n\n`generateSchema` from `@dimah-s3/db/cli` writes the Drizzle or Prisma schema of several clients into one file. It is FumaDB's `generateSchema`, so your app does not need to depend on `fumadb`. [PostgreSQL schema](https://s3.dimah.dev/docs/share#create-the-table-step).\n\n- **PostgreSQL schema.** With `@dimah-s3/db` and `@dimah-s3/share` in one schema, such as `names.schema(\"storage\")`, generate both with `generateSchema([dimahS3Db, dimahS3Share])`: the file declares `pgSchema(\"storage\")` once, so `drizzle-kit` accepts it and creates the schema. It replaces the hand-written file that re-exported both generated files.\n"
+    filename: 2026-11-25-generate-schema.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: patch\n---\n\n### SharedView says a download started\n\n`SharedView` announces \"Download started\" in a polite live region once the browser has the file's URL, and its Download button shows a check for two seconds, for the shared file and for each file of a shared folder. Before, a link without a download limit gave no sign, and a second press counted a second download.\n\n- **Translation.** `\"Download started(shared view)\"`.\n"
-    filename: 2026-11-24-shared-view-download-started.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### Usage summed in the database\n\n`s3.db.objects.usage`, the byte quota checked before each upload, and the folder sizes of a listing sum the sizes in the database, instead of reading one row per object. A scope with many files no longer reads all of them to accept one more.\n\n- **Same totals.** A pending upload counts its declared size, an active file its size, and an overwrite in flight the larger of the two, as before. Only the rows of overwrites in flight are read.\n"
+    filename: 2026-11-25-usage-in-database.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### Share counts that hold under load\n\nA download, a view, and a revoke each change a link in one statement, so concurrent visitors and owners no longer race.\n\n- **Downloads.** `downloadShared` counts a download only while the link is not revoked, has not expired, and is under `maxDownloads`, in the same statement that adds it. Concurrent downloads each count and never pass the limit. Before, a burst of downloads on one link could fail with `CONFLICT` although the limit was far away.\n- **Views.** Every view of `openLink` is counted. Before, of two views at once, one could be lost.\n- **Counts.** `s3.share.links.revokeTarget` and `s3.share.pruneLinks` return what they changed, from the same statement that changes it.\n- **`share_link.write_token`.** No longer written. The column stays until a major release changes the share schema, so your tables do not change.\n"
+    filename: 2026-11-25-share-atomic-counts.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### Filter share links by status\n\n`listLinks`, `s3.share.links.list` and `count`, and `useShareLinks` take `status`, so an owner screen can show or count the links that still open without a query of its own on `share_link`. [listLinks](https://s3.dimah.dev/docs/share/api#createlink-input).\n\n- **`status`.** `active`, `expired`, `exhausted`, or `revoked`, or an array of them. The database tells them apart at the time of the call, the same way `shareLinkStatus` does: revoked wins over expired, and expired over exhausted. It takes precedence over `includeRevoked`, which keeps its meaning.\n- **`GET /share/links`.** Takes `status` as one value or a comma-separated list. An unknown status fails with `VALIDATION_ERROR`.\n- **`useShareLinks(api.share, target, { status })`.** Lists only those statuses. A create, change, or revoke that moves a link out of them takes it out of `links`, so a list of active links drops a link once it is turned off or reaches its limit.\n"
+    filename: 2026-11-25-share-status-filter.md
     v: 0.0.0
 core:packages:
-  - id: npm:@dimah-s3/cli
+  - changelogIds:
+      - 2026-11-25-dependency-updates.md
+    id: npm:@dimah-s3/cli
+    updated: true
+  - id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-11-24-share-rule-errors.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-11-24-change-hook-targets.md
+      - 2026-11-25-folder-delete-once.md
+      - 2026-11-25-fumadb-0-8.md
+      - 2026-11-25-generate-schema.md
+      - 2026-11-25-usage-in-database.md
     id: npm:@dimah-s3/db
     updated: true
-  - id: npm:@dimah-s3/server
+  - changelogIds:
+      - 2026-11-25-dependency-updates.md
+    id: npm:@dimah-s3/server
+    updated: true
+  - id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-11-24-share-rule-errors.md
-    id: npm:@dimah-s3/react
-    updated: true
-  - changelogIds:
-      - 2026-11-24-change-hook-targets.md
-      - 2026-11-24-share-expires-in.md
-      - 2026-11-24-share-rule-errors.md
+      - 2026-11-25-fumadb-0-8.md
+      - 2026-11-25-share-atomic-counts.md
+      - 2026-11-25-share-status-filter.md
     id: npm:@dimah-s3/share
     updated: true
-  - changelogIds:
-      - 2026-11-24-object-list-slots.md
-      - 2026-11-24-share-expires-in.md
-      - 2026-11-24-shared-view-download-started.md
-    id: npm:@dimah-s3/ui
+  - id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - distTag: latest

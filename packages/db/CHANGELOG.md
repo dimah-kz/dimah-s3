@@ -1,3 +1,30 @@
+## @dimah-s3/db@2.4.0
+
+### onFolderDeleted runs once
+
+Of two `DELETE /db/folder` calls at once for the same folder, only the one that removed it runs `onFolderDeleted`. Before, both could run it.
+
+- **`s3.db.folders.delete`.** Resolves `true` when the call removed the folder, and `false` when it was already gone, also when a concurrent delete removed it first. It resolved `undefined` before.
+
+### Built on FumaDB 0.8
+
+`@dimah-s3/db` and `@dimah-s3/share` depend on `fumadb` `~0.8.0`. The adapters from `@dimah-s3/db/adapters/*` are FumaDB 0.8's.
+
+- **Your own `fumadb`.** If your app depends on `fumadb` itself, move it to 0.8 as well, so the adapters and the clients come from one copy.
+- **Drizzle on MySQL.** The Drizzle schema that `runCli` generates for `@dimah-s3/share` on MySQL loads: its `integer` columns are declared with `int()`, which `drizzle-orm/mysql-core` exports. Generate it again if you use MySQL with Drizzle.
+
+### One schema file for db and share
+
+`generateSchema` from `@dimah-s3/db/cli` writes the Drizzle or Prisma schema of several clients into one file. It is FumaDB's `generateSchema`, so your app does not need to depend on `fumadb`. [PostgreSQL schema](https://s3.dimah.dev/docs/share#create-the-table-step).
+
+- **PostgreSQL schema.** With `@dimah-s3/db` and `@dimah-s3/share` in one schema, such as `names.schema("storage")`, generate both with `generateSchema([dimahS3Db, dimahS3Share])`: the file declares `pgSchema("storage")` once, so `drizzle-kit` accepts it and creates the schema. It replaces the hand-written file that re-exported both generated files.
+
+### Usage summed in the database
+
+`s3.db.objects.usage`, the byte quota checked before each upload, and the folder sizes of a listing sum the sizes in the database, instead of reading one row per object. A scope with many files no longer reads all of them to accept one more.
+
+- **Same totals.** A pending upload counts its declared size, an active file its size, and an overwrite in flight the larger of the two, as before. Only the rows of overwrites in flight are read.
+
 ## @dimah-s3/db@2.3.0
 
 ### Change hooks get what the call loaded
