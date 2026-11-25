@@ -396,6 +396,43 @@ describe("listLinks", () => {
     const all = await client.share.listLinks({ includeRevoked: true }, as("1"));
     expect(all.links).toMatchObject([{ id: link.id, status: "revoked" }]);
   });
+
+  it("filters by status, over HTTP and in process", async () => {
+    const { client, s3, put, as, patchLink } = await setup();
+    const key = await put("1", "a.txt");
+    const target = { type: "object" as const, key };
+    const create = async () =>
+      (await client.share.createLink({ target }, as("1"))).link;
+    const active = await create();
+    const expired = await create();
+    await patchLink(expired.id, { expiresAt: new Date(Date.now() - DAY) });
+    const revoked = await create();
+    await client.share.revokeLink({ id: revoked.id }, as("1"));
+
+    const ids = (page: { links: { id: string }[] }) =>
+      page.links.map((link) => link.id).sort();
+    expect(
+      ids(await client.share.listLinks({ target, status: "active" }, as("1"))),
+    ).toEqual([active.id]);
+    expect(
+      ids(
+        await client.share.listLinks(
+          { status: ["expired", "revoked"] },
+          as("1"),
+        ),
+      ),
+    ).toEqual([expired.id, revoked.id].sort());
+
+    const request = new Request("https://app.test/", {
+      headers: { "x-user": "1" },
+    });
+    expect(
+      ids(await s3.share.api.listLinks({ status: ["expired"] }, { request })),
+    ).toEqual([expired.id]);
+    await expect(
+      client.share.listLinks({ status: "open" as never }, as("1")),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
 });
 
 describe("getLink, updateLink, revokeLink", () => {

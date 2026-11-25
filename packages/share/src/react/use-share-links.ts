@@ -7,6 +7,7 @@ import type {
   ShareLinkSettingsInput,
   ShareTargetInput,
 } from "@/types/client";
+import type { ShareLinkStatus } from "@/types/link";
 import { toShareError } from "./to-share-error";
 
 /** The owner actions {@link useShareLinks} calls: `api.share` from `shareClient()`. */
@@ -17,8 +18,18 @@ export type ShareLinksActions = Pick<
 
 /** Options of {@link useShareLinks}. */
 export type UseShareLinksOptions = {
-  /** Also list revoked links, and keep a link in `links` once revoked. @default false */
+  /**
+   * Also list revoked links, and keep a link in `links` once revoked.
+   * Ignored with `status`. @default false
+   */
   includeRevoked?: boolean;
+  /**
+   * Only links in this status or these statuses, such as `"active"` for
+   * the links that still open. A link that a create, change, or revoke
+   * moves out of them leaves `links`. Takes precedence over
+   * `includeRevoked`.
+   */
+  status?: ShareLinkStatus | readonly ShareLinkStatus[];
   /** Links per page, 1 to 100. @default 100 */
   limit?: number;
 };
@@ -78,8 +89,8 @@ export type UseShareLinksReturn = {
     settings: ShareLinkSettingsInput,
   ) => Promise<ShareClientLink>;
   /**
-   * Turns a link off. Without `includeRevoked`, it leaves `links`. Rejects
-   * with an `APIError`.
+   * Turns a link off. It leaves `links` unless `includeRevoked` is set or
+   * `status` has `revoked`. Rejects with an `APIError`.
    */
   revoke: (id: string) => Promise<ShareClientLink>;
 };
@@ -111,6 +122,7 @@ const EMPTY: ListState = {
 function listKey(
   target: ShareTargetInput | null,
   includeRevoked: boolean,
+  statuses: readonly ShareLinkStatus[] | undefined,
   limit: number,
 ): string | null {
   if (target === null) return null;
@@ -118,7 +130,25 @@ function listKey(
     target.type === "object"
       ? ["object", target.bucket ?? "", target.key]
       : ["folder", target.folderId];
-  return JSON.stringify([...id, includeRevoked, limit]);
+  return JSON.stringify([...id, includeRevoked, statuses ?? null, limit]);
+}
+
+/** `status` as a sorted list without repeats, so its order does not reload. */
+function statusList(
+  status: UseShareLinksOptions["status"],
+): readonly ShareLinkStatus[] | undefined {
+  if (status === undefined) return undefined;
+  return [...new Set(typeof status === "string" ? [status] : status)].sort();
+}
+
+/** Whether `link` belongs in a list with these options. */
+function listed(
+  link: ShareClientLink,
+  includeRevoked: boolean,
+  statuses: readonly ShareLinkStatus[] | undefined,
+): boolean {
+  if (statuses !== undefined) return statuses.includes(link.status);
+  return includeRevoked || link.status !== "revoked";
 }
 
 /** `limit` as a whole number from 1 to {@link SHARE_LIST_MAX_LIMIT}. */
@@ -172,8 +202,9 @@ export function useShareLinks(
   options: UseShareLinksOptions = {},
 ): UseShareLinksReturn {
   const includeRevoked = options.includeRevoked === true;
+  const statuses = statusList(options.status);
   const limit = pageLimit(options.limit);
-  const key = listKey(target, includeRevoked, limit);
+  const key = listKey(target, includeRevoked, statuses, limit);
 
   const stateRef = useRef<ListState>(EMPTY);
   const [state, setState] = useState<ListState>(EMPTY);
@@ -186,9 +217,16 @@ export function useShareLinks(
   }, []);
 
   // The newest render's values, for callbacks that outlive it.
-  const latest = useRef({ share, target, includeRevoked, limit, key });
+  const latest = useRef({
+    share,
+    target,
+    includeRevoked,
+    statuses,
+    limit,
+    key,
+  });
   useEffect(() => {
-    latest.current = { share, target, includeRevoked, limit, key };
+    latest.current = { share, target, includeRevoked, statuses, limit, key };
   });
   const abortRef = useRef<AbortController | null>(null);
   /** Bumped by every load, so an older answer is dropped. */
@@ -223,6 +261,9 @@ export function useShareLinks(
           {
             target: current.target,
             includeRevoked: current.includeRevoked,
+            ...(current.statuses !== undefined && {
+              status: current.statuses,
+            }),
             limit: current.limit,
             ...(mode === "append" && before.cursor !== null
               ? { cursor: before.cursor }
@@ -304,9 +345,32 @@ export function useShareLinks(
     [update],
   );
 
+  /**
+   * Puts `link` in place of its row, first when it is new, or takes it out
+   * when the list's options no longer cover it.
+   */
+  const placeLink = useCallback(
+    (link: ShareClientLink, position: "first" | "in place") => {
+      const {
+        key: forKey,
+        includeRevoked: keep,
+        statuses: only,
+      } = latest.current;
+      editLinks(forKey, (links) => {
+        if (!listed(link, keep, only)) {
+          return links.filter((row) => row.id !== link.id);
+        }
+        return position === "first"
+          ? [link, ...links.filter((row) => row.id !== link.id)]
+          : replaceLink(links, link);
+      });
+    },
+    [editLinks],
+  );
+
   const create = useCallback(
     async (settings: ShareLinkSettingsInput = {}) => {
-      const { share: actions, target: shared, key: forKey } = latest.current;
+      const { share: actions, target: shared } = latest.current;
       if (shared === null) {
         throw new TypeError("useShareLinks: create needs a target.");
       }
@@ -315,52 +379,41 @@ export function useShareLinks(
           ...settings,
           target: shared,
         });
-        editLinks(forKey, (links) => [
-          link,
-          ...links.filter((row) => row.id !== link.id),
-        ]);
+        placeLink(link, "first");
         return link;
       } catch (caught) {
         throw toShareError(caught);
       }
     },
-    [editLinks],
+    [placeLink],
   );
 
   const updateLink = useCallback(
     async (id: string, settings: ShareLinkSettingsInput) => {
-      const { share: actions, key: forKey } = latest.current;
+      const { share: actions } = latest.current;
       try {
         const { link } = await actions.updateLink({ ...settings, id });
-        editLinks(forKey, (links) => replaceLink(links, link));
+        placeLink(link, "in place");
         return link;
       } catch (caught) {
         throw toShareError(caught);
       }
     },
-    [editLinks],
+    [placeLink],
   );
 
   const revoke = useCallback(
     async (id: string) => {
-      const {
-        share: actions,
-        key: forKey,
-        includeRevoked: keep,
-      } = latest.current;
+      const { share: actions } = latest.current;
       try {
         const { link } = await actions.revokeLink({ id });
-        editLinks(forKey, (links) =>
-          keep
-            ? replaceLink(links, link)
-            : links.filter((row) => row.id !== link.id),
-        );
+        placeLink(link, "in place");
         return link;
       } catch (caught) {
         throw toShareError(caught);
       }
     },
-    [editLinks],
+    [placeLink],
   );
 
   const fresh = key !== null && state.key === key;

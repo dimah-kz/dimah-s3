@@ -57,8 +57,14 @@ export type ShareUpdateLinkInput = ShareLinkSettingsInput & { id: string };
 export type ShareListLinksInput = {
   /** Only links to this object or folder. */
   target?: ShareTargetInput;
-  /** Also list revoked links. @default false */
+  /** Also list revoked links. Ignored with `status`. @default false */
   includeRevoked?: boolean;
+  /**
+   * Only links in this status or these statuses, by the server's clock,
+   * such as `"active"` for the links that still open. Takes precedence
+   * over `includeRevoked`.
+   */
+  status?: ShareLinkStatus | readonly ShareLinkStatus[];
   /** @default 50 */
   limit?: number;
   /** `nextCursor` of the previous page. */

@@ -38,7 +38,7 @@ export type ShareLink = {
   maxDownloads: number | null;
   /** Downloads the link handed out. */
   downloadCount: number;
-  /** Times the link was opened and unlocked. Concurrent opens can miss a count. */
+  /** Times the link was opened and unlocked. Concurrent opens each count. */
   viewCount: number;
   /** Last open or download. */
   lastAccessedAt: Date | null;

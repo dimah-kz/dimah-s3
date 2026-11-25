@@ -203,6 +203,20 @@ describe("db() through the test kit", () => {
     expect(onObjectUpdated).toHaveBeenCalledTimes(3);
   });
 
+  it("runs onFolderDeleted once for concurrent deletes of one folder", async () => {
+    const onFolderDeleted = vi.fn();
+    const { client } = setup(undefined, { onFolderDeleted });
+    const { folder } = await client.db.createFolder(
+      { name: "docs" },
+      asUser("1"),
+    );
+    await Promise.all([
+      client.db.deleteFolder({ id: folder.id }, asUser("1")),
+      client.db.deleteFolder({ id: folder.id }, asUser("1")),
+    ]);
+    expect(onFolderDeleted).toHaveBeenCalledTimes(1);
+  });
+
   it("fails the call when a change hook throws, and keeps the change", async () => {
     const { client } = setup(undefined, {
       onFolderCreated: () => {

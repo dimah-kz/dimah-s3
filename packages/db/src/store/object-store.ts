@@ -425,6 +425,23 @@ function countedBytes(
       : size;
 }
 
+/** An active row with an overwrite in flight: it counts the larger size. */
+function overwriteInFlight(b: ObjectConditions, now: Date): Condition {
+  return b.and(b("status", "=", "active"), b("expiresAt", ">=", now));
+}
+
+/**
+ * Every other row, spelled out rather than `b.not(…)`: in SQL, `NOT` of a
+ * comparison with a null `expires_at` is unknown, so the row would drop out.
+ */
+function noOverwriteInFlight(b: ObjectConditions, now: Date): Condition {
+  return b.or(
+    b("status", "!=", "active"),
+    b.isNull("expiresAt"),
+    b("expiresAt", "<", now),
+  );
+}
+
 function folderCondition(b: ObjectConditions, folders: FolderSet): Condition {
   if (folders === undefined) return true;
   if (folders === null) return b.isNull("folderId");
@@ -641,21 +658,37 @@ export function createObjectStore<TAttributes = never>(
               folderId: options.folderId,
               recursive: options.recursive === true,
             });
-      const rows = await orm.findMany("storageObject", {
-        select: ["status", "size", "declaredSize", "expiresAt"],
-        where: (b) =>
-          b.and(
-            liveRows(scope, now, options.excluding)(b),
-            folderCondition(b, folders),
-          ),
-      });
-      let totalBytes = 0;
-      let objectCount = 0;
-      for (const row of rows) {
-        totalBytes += countedBytes(row, now);
-        objectCount += 1;
-      }
-      return { totalBytes, objectCount };
+      const where = (b: ObjectConditions) =>
+        b.and(
+          liveRows(scope, now, options.excluding)(b),
+          folderCondition(b, folders),
+        );
+      const [pending, settled, overwrites] = await Promise.all([
+        orm.aggregate("storageObject", {
+          where: (b) => b.and(where(b), b.isNull("size")),
+          count: true,
+          sum: ["declaredSize"],
+        }),
+        orm.aggregate("storageObject", {
+          where: (b) =>
+            b.and(where(b), b.isNotNull("size"), noOverwriteInFlight(b, now)),
+          count: true,
+          sum: ["size"],
+        }),
+        orm.findMany("storageObject", {
+          select: ["status", "size", "declaredSize", "expiresAt"],
+          where: (b) =>
+            b.and(where(b), b.isNotNull("size"), overwriteInFlight(b, now)),
+        }),
+      ]);
+      // The database sums the sizes; only overwrites in flight are read.
+      let totalBytes =
+        Number(pending.sum.declaredSize ?? 0) + Number(settled.sum.size ?? 0);
+      for (const row of overwrites) totalBytes += countedBytes(row, now);
+      return {
+        totalBytes,
+        objectCount: pending.count + settled.count + overwrites.length,
+      };
     },
 
     async usageByFolder(scope, folderIds) {
@@ -664,22 +697,48 @@ export function createObjectStore<TAttributes = never>(
       if (unique.length === 0) return result;
       const orm = await getOrm();
       const now = new Date();
+      const add = (folderId: string | null, bytes: number, count: number) => {
+        if (folderId === null) return;
+        const current = result.get(folderId) ?? {
+          totalBytes: 0,
+          objectCount: 0,
+        };
+        current.totalBytes += bytes;
+        current.objectCount += count;
+        result.set(folderId, current);
+      };
       for (let index = 0; index < unique.length; index += USAGE_ID_BATCH) {
         const run = unique.slice(index, index + USAGE_ID_BATCH);
-        const rows = await orm.findMany("storageObject", {
-          select: ["folderId", "status", "size", "declaredSize", "expiresAt"],
-          where: (b) =>
-            b.and(liveRows(scope, now, undefined)(b), b("folderId", "in", run)),
-        });
-        for (const row of rows) {
-          if (row.folderId == null) continue;
-          const current = result.get(row.folderId) ?? {
-            totalBytes: 0,
-            objectCount: 0,
-          };
-          current.totalBytes += countedBytes(row, now);
-          current.objectCount += 1;
-          result.set(row.folderId, current);
+        const where = (b: ObjectConditions) =>
+          b.and(liveRows(scope, now, undefined)(b), b("folderId", "in", run));
+        const [pending, settled, overwrites] = await Promise.all([
+          orm.aggregate("storageObject", {
+            where: (b) => b.and(where(b), b.isNull("size")),
+            groupBy: ["folderId"],
+            count: true,
+            sum: ["declaredSize"],
+          }),
+          orm.aggregate("storageObject", {
+            where: (b) =>
+              b.and(where(b), b.isNotNull("size"), noOverwriteInFlight(b, now)),
+            groupBy: ["folderId"],
+            count: true,
+            sum: ["size"],
+          }),
+          orm.findMany("storageObject", {
+            select: ["folderId", "status", "size", "declaredSize", "expiresAt"],
+            where: (b) =>
+              b.and(where(b), b.isNotNull("size"), overwriteInFlight(b, now)),
+          }),
+        ]);
+        for (const { group, count, sum } of pending) {
+          add(group.folderId, Number(sum.declaredSize ?? 0), count);
+        }
+        for (const { group, count, sum } of settled) {
+          add(group.folderId, Number(sum.size ?? 0), count);
+        }
+        for (const row of overwrites) {
+          add(row.folderId, countedBytes(row, now), 1);
         }
       }
       return result;
@@ -760,11 +819,12 @@ export function createObjectStore<TAttributes = never>(
               ? b.isNull("uploadToken")
               : b("uploadToken", "=", existing.uploadToken),
           );
-        await orm.updateMany("storageObject", {
+        const { count } = await orm.updateMany("storageObject", {
           where: unchanged,
           // An active row stays active until the overwrite is confirmed.
           set: existing.status === "active" ? upload : fresh,
         });
+        if (count === 0) throw s3Error("CONFLICT");
       }
 
       const row = await find(ref);
@@ -865,7 +925,7 @@ export function createObjectStore<TAttributes = never>(
 
     async update(ref, input) {
       const orm = await getOrm();
-      await orm.updateMany("storageObject", {
+      const { count } = await orm.updateMany("storageObject", {
         where: (b) =>
           b.and(
             byRef(b, ref),
@@ -885,6 +945,8 @@ export function createObjectStore<TAttributes = never>(
           updatedAt: new Date(),
         },
       });
+      if (count === 0) return null;
+      // Read back: a write after this one may have moved or deleted the row.
       const row = await find(ref);
       if (row?.status !== "active") return null;
       if (ref.id !== undefined && row.id !== ref.id) return null;
@@ -957,13 +1019,14 @@ export function createObjectStore<TAttributes = never>(
         b.and(b("id", "=", id), staleObject(b, now));
       const current = await findById(id);
       if (!current) return null;
+      let claimed: number;
       if (current.status === "active") {
         const token = current.uploadToken;
         if (token === null) return null;
         // The row keeps its status, and the `updatedAt` listings sort on.
         // Its token moves aside, so the overwrite cannot confirm it. Matching
         // on the token leaves a row that a new upload took meanwhile alone.
-        await orm.updateMany("storageObject", {
+        ({ count: claimed } = await orm.updateMany("storageObject", {
           where: (b) =>
             b.and(
               stale(b),
@@ -971,14 +1034,16 @@ export function createObjectStore<TAttributes = never>(
               b("uploadToken", "=", token),
             ),
           set: { expiresAt: deadline, uploadToken: claimedToken(token) },
-        });
+        }));
       } else {
-        await orm.updateMany("storageObject", {
+        ({ count: claimed } = await orm.updateMany("storageObject", {
           where: (b) =>
             b.and(stale(b), b("status", "in", ["pending", "purging"])),
           set: { status: "purging", expiresAt: deadline, updatedAt: now },
-        });
+        }));
       }
+      // Another worker claimed it first.
+      if (claimed === 0) return null;
       const row = await findById(id);
       return row?.expiresAt?.getTime() === deadline.getTime() ? row : null;
     },
@@ -992,11 +1057,11 @@ export function createObjectStore<TAttributes = never>(
 
     async pruneDeleted(olderThan) {
       const orm = await getOrm();
-      const where = (b: ObjectConditions) =>
-        b.and(b("status", "=", "deleted"), b("deletedAt", "<", olderThan));
-      const pruned = await orm.count("storageObject", { where });
-      if (pruned > 0) await orm.deleteMany("storageObject", { where });
-      return pruned;
+      const { count } = await orm.deleteMany("storageObject", {
+        where: (b) =>
+          b.and(b("status", "=", "deleted"), b("deletedAt", "<", olderThan)),
+      });
+      return count;
     },
   };
 }

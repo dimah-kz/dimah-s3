@@ -430,6 +430,12 @@ Run it with `npx tsx scripts/dimah-s3.ts <command>`:
 | `generate latest -o <file>` | Writes the Drizzle tables or Prisma models for the client's adapter, or with Kysely the SQL that creates the tables |
 | `migrate latest`            | Creates the tables with the Kysely adapter. `migrate(client)` does it from code, and refuses another schema version |
 
+`generateSchema(clients)` from the same entry writes the Drizzle tables or
+Prisma models of several clients into one file, such as `@dimah-s3/db` and
+`@dimah-s3/share`, and returns `{ code, path }`. The clients must share one
+adapter. It is FumaDB's `generateSchema`, re-exported so your app does not
+depend on `fumadb`.
+
 ## Frequently asked questions
 
 <Accordions>
@@ -470,8 +476,9 @@ export const dimahS3Db = DimahS3Db.names
 
 `migrate` creates the schema, and so does `drizzle-kit` from the
 `storageSchema` export of the generated file. With
-[share links](/docs/share#create-the-table-step) in the same schema, list one file
-that re-exports both generated files, so `drizzle-kit` sees the schema once. The generated Prisma models
+[share links](/docs/share#create-the-table-step) in the same schema,
+generate both into one file with `generateSchema` from `@dimah-s3/db/cli`,
+so `drizzle-kit` sees the schema once. The generated Prisma models
 carry `@@schema("storage")`: list it in the datasource, as in
 `schemas = ["public", "storage"]`. The settings table,
 `private_dimah_s3_settings`, stays in the search path.

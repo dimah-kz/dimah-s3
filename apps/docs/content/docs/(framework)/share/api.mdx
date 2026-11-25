@@ -70,7 +70,8 @@ an analytics hook. Their contexts never carry the password hash.
 - A revoked link stops handing out download URLs at once. A presigned URL
   already handed out works until `downloadExpiresIn` passes.
 - A download counts when its URL is handed out, not when the bytes arrive.
-  The limit is a compare-and-set, so concurrent downloads never pass it.
+  The count and the limit check are one statement, so concurrent downloads
+  each count and never pass the limit.
 - `access` proofs and `/share/file` URLs are signed with the instance secret
   (`DIMAH_S3_SECRET`). Rotating it keeps them valid while the old secret is
   still in the list.
@@ -165,8 +166,19 @@ browser: its clock can run ahead of the server's, and an `expiresAt` at the
 longest lifetime then fails `expiration.max`. Sending both fails with
 `VALIDATION_ERROR`.
 
-`listLinks` takes `target`, `includeRevoked`, `limit` (1 to 100), and
-`cursor`.
+`listLinks` takes `target`, `includeRevoked`, `status`, `limit` (1 to 100),
+and `cursor`. `status` is one of `active`, `expired`, `exhausted`, and
+`revoked`, or an array of them, judged by the server's clock the way
+`shareLinkStatus` tells them apart. It takes precedence over
+`includeRevoked`:
+
+```ts
+// The links of a file that still open.
+const { links } = await s3Client.share.listLinks({
+  target: { type: "object", key },
+  status: "active",
+});
+```
 
 ### ShareClientLink
 
@@ -182,7 +194,7 @@ longest lifetime then fails `expiration.max`. Sending both fails with
 | `expiresAt`         | `string \| null`                                    | ISO date                                                               |
 | `maxDownloads`      | `number \| null`                                    | The download limit                                                     |
 | `downloadCount`     | `number`                                            | Download URLs handed out                                               |
-| `viewCount`         | `number`                                            | Unlocked opens. Concurrent opens can miss a count                      |
+| `viewCount`         | `number`                                            | Unlocked opens, each one counted                                       |
 | `lastAccessedAt`    | `string \| null`                                    | Last open or download                                                  |
 | `revokedAt`         | `string \| null`                                    | When it was turned off                                                 |
 | `createdAt`         | `string`                                            | ISO date                                                               |
@@ -208,12 +220,12 @@ of the shared folder.
 
 The plugin's context on the server (`SharePluginContext`).
 
-| Property      | Type                                                                        | Description                                                                                                                                         |
-| ------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `api`         | `ShareServerApi`                                                            | Every client action as `(input, options?)`, behind the instance guard. `options` is `S3ServerCallOptions`                                           |
-| `links`       | `ShareLinks`                                                                | `find`, `findByToken`, `list(scope)`, `count(scope)`, `revoke(id)`, and `revokeTarget(target)`, with no guard                                       |
-| `pruneLinks`  | `(options: { olderThan: Date \| number }) => Promise<{ pruned; orphaned }>` | Removes links revoked or expired before `olderThan`, and links created before it whose target was deleted (`orphaned`). Reads every older live link |
-| `checkSchema` | `() => Promise<void>`                                                       | Throws unless the database is at share schema `1.0.0`. The first query runs it too                                                                  |
+| Property      | Type                                                                        | Description                                                                                                                                                                                                |
+| ------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api`         | `ShareServerApi`                                                            | Every client action as `(input, options?)`, behind the instance guard. `options` is `S3ServerCallOptions`                                                                                                  |
+| `links`       | `ShareLinks`                                                                | `find`, `findByToken`, `list(scope, filter?)`, `count(scope, filter?)`, `revoke(id)`, and `revokeTarget(target)`, with no guard. A `filter` takes `objectId` or `folderId`, `includeRevoked`, and `status` |
+| `pruneLinks`  | `(options: { olderThan: Date \| number }) => Promise<{ pruned; orphaned }>` | Removes links revoked or expired before `olderThan`, and links created before it whose target was deleted (`orphaned`). Reads every older live link                                                        |
+| `checkSchema` | `() => Promise<void>`                                                       | Throws unless the database is at share schema `1.0.0`. The first query runs it too                                                                                                                         |
 
 ### useShareLinks()
 
@@ -236,27 +248,28 @@ const { links, status, create, update, revoke } = useShareLinks(api.share, {
 await create({ maxDownloads: 3 });
 ```
 
-| Option           | Type      | Default | Description                                                 |
-| ---------------- | --------- | ------- | ----------------------------------------------------------- |
-| `includeRevoked` | `boolean` | `false` | Also list revoked links, and keep a link once it is revoked |
-| `limit`          | `number`  | `100`   | Links per page, 1 to 100                                    |
+| Option           | Type                                   | Default | Description                                                                                                     |
+| ---------------- | -------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
+| `includeRevoked` | `boolean`                              | `false` | Also list revoked links, and keep a link once it is revoked. Ignored with `status`                              |
+| `status`         | `ShareLinkStatus \| ShareLinkStatus[]` | —       | Only links in these statuses. A create, change, or revoke that moves a link out of them takes it out of `links` |
+| `limit`          | `number`                               | `100`   | Links per page, 1 to 100                                                                                        |
 
-| Property        | Type                                                                          | Description                                                  |
-| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `target`        | `ShareTargetInput \| null`                                                    | The object or folder the links belong to                     |
-| `links`         | `readonly ShareClientLink[]`                                                  | The target's links, newest first                             |
-| `status`        | `"idle" \| "loading" \| "refreshing" \| "loading-more" \| "ready" \| "error"` | `idle` without a target, as in `useObjectList`               |
-| `error`         | `APIError \| null`                                                            | Why the last load failed, while `status` is `error`          |
-| `isLoading`     | `boolean`                                                                     | The first page is on its way, and there is nothing to show   |
-| `isRefreshing`  | `boolean`                                                                     | The first page loads again; `links` stay                     |
-| `isLoadingMore` | `boolean`                                                                     | The next page is on its way                                  |
-| `hasMore`       | `boolean`                                                                     | Another page follows                                         |
-| `loadMore`      | `() => Promise<void>`                                                         | Appends the next page; ignored while a load is on its way    |
-| `refresh`       | `() => Promise<void>`                                                         | Loads the first page again, keeping `links` until it arrives |
-| `retry`         | `() => Promise<void>`                                                         | Repeats the load that failed                                 |
-| `create`        | `(settings?) => Promise<ShareClientLink>`                                     | Creates a link to the target and puts it first               |
-| `update`        | `(id, settings) => Promise<ShareClientLink>`                                  | Changes a link's settings                                    |
-| `revoke`        | `(id) => Promise<ShareClientLink>`                                            | Turns a link off; it leaves `links` unless `includeRevoked`  |
+| Property        | Type                                                                          | Description                                                                            |
+| --------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `target`        | `ShareTargetInput \| null`                                                    | The object or folder the links belong to                                               |
+| `links`         | `readonly ShareClientLink[]`                                                  | The target's links, newest first                                                       |
+| `status`        | `"idle" \| "loading" \| "refreshing" \| "loading-more" \| "ready" \| "error"` | `idle` without a target, as in `useObjectList`                                         |
+| `error`         | `APIError \| null`                                                            | Why the last load failed, while `status` is `error`                                    |
+| `isLoading`     | `boolean`                                                                     | The first page is on its way, and there is nothing to show                             |
+| `isRefreshing`  | `boolean`                                                                     | The first page loads again; `links` stay                                               |
+| `isLoadingMore` | `boolean`                                                                     | The next page is on its way                                                            |
+| `hasMore`       | `boolean`                                                                     | Another page follows                                                                   |
+| `loadMore`      | `() => Promise<void>`                                                         | Appends the next page; ignored while a load is on its way                              |
+| `refresh`       | `() => Promise<void>`                                                         | Loads the first page again, keeping `links` until it arrives                           |
+| `retry`         | `() => Promise<void>`                                                         | Repeats the load that failed                                                           |
+| `create`        | `(settings?) => Promise<ShareClientLink>`                                     | Creates a link to the target and puts it first                                         |
+| `update`        | `(id, settings) => Promise<ShareClientLink>`                                  | Changes a link's settings                                                              |
+| `revoke`        | `(id) => Promise<ShareClientLink>`                                            | Turns a link off; it leaves `links` unless `includeRevoked`, or `status` has `revoked` |
 
 A failed load never rejects: it sets `error`, and a failed next page keeps
 the links already loaded. `create`, `update`, and `revoke` reject with an

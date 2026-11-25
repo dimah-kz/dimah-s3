@@ -1,6 +1,20 @@
 import { createCli } from "fumadb/cli";
 import type { DimahS3DbClient } from "./fuma-db";
 
+/*
+ * FumaDB's `generateSchema`, so an app writes one file for several clients
+ * without depending on `fumadb` itself: `@dimah-s3/db` and
+ * `@dimah-s3/share` in one PostgreSQL schema declare `pgSchema()` once,
+ * which drizzle-kit needs. The clients must share one adapter.
+ *
+ *   const adapter = drizzleAdapter({ db: undefined, provider: "postgresql" });
+ *   const { code } = generateSchema([
+ *     DimahS3Db.names.schema("storage").client(adapter),
+ *     DimahS3Share.names.schema("storage").client(adapter),
+ *   ]);
+ */
+export { generateSchema } from "fumadb";
+
 declare const __DIMAH_S3_DB_VERSION__: string;
 
 /**

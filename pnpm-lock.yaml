@@ -196,11 +196,11 @@ catalogs:
       specifier: ^4.3.5
       version: 4.3.5
     '@types/node':
-      specifier: ^26.6.6
-      version: 26.6.6
+      specifier: ^26.6.10
+      version: 26.6.10
     '@types/react':
-      specifier: ^19.3.0
-      version: 19.3.0
+      specifier: ^19.3.2
+      version: 19.3.2
     '@types/react-dom':
       specifier: ^19.3.0
       version: 19.3.0
@@ -268,8 +268,8 @@ catalogs:
       specifier: ^1.5.0
       version: 1.5.0
     tsc-alias:
-      specifier: ^1.9.10
-      version: 1.9.10
+      specifier: ^1.9.11
+      version: 1.9.11
     tsup:
       specifier: ^9.0.0
       version: 9.0.0
@@ -283,8 +283,8 @@ catalogs:
       specifier: ^8.74.0
       version: 8.74.0
     vitest:
-      specifier: ^5.1.1
-      version: 5.1.1
+      specifier: ^5.1.2
+      version: 5.1.2
     zod:
       specifier: ^4.6.7
       version: 4.6.7
@@ -295,7 +295,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:tooling/eslint-config
@@ -331,13 +331,13 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/brand:
     dependencies:
       '@base-ui/react':
         specifier: ^1.9.0
-        version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.9.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@dimah-s3/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -352,7 +352,7 @@ importers:
         version: 0.60.37(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@fuma-translate/react':
         specifier: ^1.0.2
-        version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.0.2(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -360,11 +360,11 @@ importers:
         specifier: ^0.5.2
         version: 0.5.2
       lucide-react:
-        specifier: ^1.78.0
-        version: 1.78.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.80.0
+        version: 1.80.0(@types/react@19.3.2)(react@19.3.1)
       next:
         specifier: 'catalog:'
-        version: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react:
         specifier: 'catalog:'
         version: 19.3.1
@@ -383,13 +383,13 @@ importers:
         version: 4.3.5
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@types/react':
         specifier: 'catalog:'
-        version: 19.3.0
+        version: 19.3.2
       '@types/react-dom':
         specifier: 'catalog:'
-        version: 19.3.0(@types/react@19.3.0)
+        version: 19.3.0(@types/react@19.3.2)
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -413,7 +413,7 @@ importers:
     dependencies:
       '@base-ui/react':
         specifier: ^1.9.0
-        version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.9.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@dimah-s3/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -431,22 +431,22 @@ importers:
         version: 0.5.2
       fumadocs-core:
         specifier: 16.19.7
-        version: 16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+        version: 16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.2)(lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       fumadocs-mdx:
         specifier: 15.6.4
-        version: 15.6.4(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.3.0)(fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(rolldown@1.2.19)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 15.6.4(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.3.2)(fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.2)(lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(rolldown@1.2.19)(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       fumadocs-ui:
         specifier: npm:@fumadocs/base-ui@^16.19.7
-        version: '@fumadocs/base-ui@16.19.7(@types/mdx@2.0.14)(@types/react@19.3.0)(fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)(takumi-js@2.22.1(csstype@3.2.4)(react@19.3.1))'
+        version: '@fumadocs/base-ui@16.19.7(@types/mdx@2.0.14)(@types/react@19.3.2)(fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.2)(lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)(takumi-js@2.22.1(csstype@3.2.4)(react@19.3.1))'
       lucide:
-        specifier: ^1.78.0
-        version: 1.78.0
+        specifier: ^1.80.0
+        version: 1.80.0
       lucide-react:
-        specifier: ^1.78.0
-        version: 1.78.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.80.0
+        version: 1.80.0(@types/react@19.3.2)(react@19.3.1)
       next:
         specifier: 'catalog:'
-        version: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react:
         specifier: 'catalog:'
         version: 19.3.1
@@ -467,8 +467,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -489,13 +489,13 @@ importers:
         version: 2.0.14
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@types/react':
         specifier: 'catalog:'
-        version: 19.3.0
+        version: 19.3.2
       '@types/react-dom':
         specifier: 'catalog:'
-        version: 19.3.0(@types/react@19.3.0)
+        version: 19.3.0(@types/react@19.3.2)
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -522,8 +522,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -532,7 +532,7 @@ importers:
         version: link:../../packages/server
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -556,16 +556,16 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   examples/with-db:
     dependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@base-ui/react':
         specifier: ^1.9.0
-        version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.9.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -586,7 +586,7 @@ importers:
         version: link:../../packages/ui
       '@fuma-translate/react':
         specifier: ^1.0.2
-        version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.0.2(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       better-sqlite3:
         specifier: ^13.2.0
         version: 13.2.0
@@ -600,11 +600,11 @@ importers:
         specifier: 1.0.0-rc.5
         version: 1.0.0-rc.5(@electric-sql/pglite@0.6.0)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7)
       lucide-react:
-        specifier: ^1.78.0
-        version: 1.78.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.80.0
+        version: 1.80.0(@types/react@19.3.2)(react@19.3.1)
       next:
         specifier: 'catalog:'
-        version: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -629,13 +629,13 @@ importers:
         version: 9.6.0
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@types/react':
         specifier: 'catalog:'
-        version: 19.3.0
+        version: 19.3.2
       '@types/react-dom':
         specifier: 'catalog:'
-        version: 19.3.0(@types/react@19.3.0)
+        version: 19.3.0(@types/react@19.3.2)
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -661,11 +661,11 @@ importers:
   examples/with-nextjs:
     dependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@base-ui/react':
         specifier: ^1.9.0
-        version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.9.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -680,7 +680,7 @@ importers:
         version: link:../../packages/ui
       '@fuma-translate/react':
         specifier: ^1.0.2
-        version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.0.2(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -688,11 +688,11 @@ importers:
         specifier: ^0.5.2
         version: 0.5.2
       lucide-react:
-        specifier: ^1.78.0
-        version: 1.78.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.80.0
+        version: 1.80.0(@types/react@19.3.2)(react@19.3.1)
       next:
         specifier: 'catalog:'
-        version: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -714,13 +714,13 @@ importers:
         version: 4.3.5
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@types/react':
         specifier: 'catalog:'
-        version: 19.3.0
+        version: 19.3.2
       '@types/react-dom':
         specifier: 'catalog:'
-        version: 19.3.0(@types/react@19.3.0)
+        version: 19.3.0(@types/react@19.3.2)
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -754,7 +754,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -778,7 +778,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/core:
     dependencies:
@@ -812,7 +812,7 @@ importers:
         version: 10.15.0(jiti@2.7.0)
       tsc-alias:
         specifier: 'catalog:'
-        version: 1.9.10
+        version: 1.9.11
       tsup:
         specifier: 'catalog:'
         version: 9.0.0(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -821,7 +821,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/db:
     dependencies:
@@ -832,15 +832,15 @@ importers:
         specifier: ^6.0.0 || ^7.0.0
         version: 7.10.1(typescript@7.0.2)
       fumadb:
-        specifier: ~0.7.3
-        version: 0.7.3(drizzle-orm@1.0.0-rc.5(@electric-sql/pglite@0.6.0)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7))
+        specifier: ~0.8.0
+        version: 0.8.0(drizzle-orm@1.0.0-rc.5(@electric-sql/pglite@0.6.0)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7))
       zod:
         specifier: 'catalog:'
         version: 4.6.7
     devDependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@dimah-s3/react':
         specifier: workspace:*
         version: link:../react
@@ -855,10 +855,10 @@ importers:
         version: 9.6.0
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@types/react':
         specifier: 'catalog:'
-        version: 19.3.0
+        version: 19.3.2
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -885,7 +885,7 @@ importers:
         version: 0.29.9
       tsc-alias:
         specifier: 'catalog:'
-        version: 1.9.10
+        version: 1.9.11
       tsup:
         specifier: 'catalog:'
         version: 9.0.0(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -894,26 +894,26 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/react:
     dependencies:
       react-dropzone:
         specifier: ^20.2.1
-        version: 20.2.1(@types/react@19.3.0)(react@19.3.1)
+        version: 20.2.1(@types/react@19.3.2)(react@19.3.1)
     devDependencies:
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../core
       '@fuma-translate/react':
         specifier: ^1.0.2
-        version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.0.2(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@types/react':
         specifier: 'catalog:'
-        version: 19.3.0
+        version: 19.3.2
       '@types/react-dom':
         specifier: 'catalog:'
-        version: 19.3.0(@types/react@19.3.0)
+        version: 19.3.0(@types/react@19.3.2)
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -943,7 +943,7 @@ importers:
         version: 19.3.1(react@19.3.1)
       tsc-alias:
         specifier: 'catalog:'
-        version: 1.9.10
+        version: 1.9.11
       tsup:
         specifier: 'catalog:'
         version: 9.0.0(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -952,16 +952,16 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/server:
     dependencies:
       '@aws-sdk/s3-presigned-post':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@aws-sdk/s3-request-presigner':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../core
@@ -973,11 +973,11 @@ importers:
         version: 4.6.7
     devDependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -995,7 +995,7 @@ importers:
         version: 10.15.0(jiti@2.7.0)
       tsc-alias:
         specifier: 'catalog:'
-        version: 1.9.10
+        version: 1.9.11
       tsup:
         specifier: 'catalog:'
         version: 9.0.0(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -1004,7 +1004,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/share:
     dependencies:
@@ -1012,15 +1012,15 @@ importers:
         specifier: workspace:*
         version: link:../core
       fumadb:
-        specifier: ~0.7.3
-        version: 0.7.3(drizzle-orm@1.0.0-rc.5(@electric-sql/pglite@0.6.0)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7))
+        specifier: ~0.8.0
+        version: 0.8.0(drizzle-orm@1.0.0-rc.5(@electric-sql/pglite@0.6.0)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7))
       zod:
         specifier: 'catalog:'
         version: 4.6.7
     devDependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1176.0
-        version: 3.1176.0
+        specifier: ^3.1177.0
+        version: 3.1177.0
       '@dimah-s3/db':
         specifier: workspace:*
         version: link:../db
@@ -1035,16 +1035,16 @@ importers:
         version: 0.6.0
       '@testing-library/react':
         specifier: ^16.3.3
-        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.2))(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@types/react':
         specifier: 'catalog:'
-        version: 19.3.0
+        version: 19.3.2
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -1080,7 +1080,7 @@ importers:
         version: 19.3.1(react@19.3.1)
       tsc-alias:
         specifier: 'catalog:'
-        version: 1.9.10
+        version: 1.9.11
       tsup:
         specifier: 'catalog:'
         version: 9.0.0(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -1089,7 +1089,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/ui:
     dependencies:
@@ -1099,7 +1099,7 @@ importers:
     devDependencies:
       '@base-ui/react':
         specifier: ^1.9.0
-        version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.9.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../core
@@ -1111,25 +1111,25 @@ importers:
         version: link:../share
       '@fuma-translate/react':
         specifier: ^1.0.2
-        version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.0.2(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@testing-library/dom':
         specifier: ^10.4.2
         version: 10.4.2
       '@testing-library/react':
         specifier: ^16.3.3
-        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.2))(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@testing-library/user-event':
         specifier: ^14.6.13
         version: 14.6.13(@testing-library/dom@10.4.2)
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@types/react':
         specifier: 'catalog:'
-        version: 19.3.0
+        version: 19.3.2
       '@types/react-dom':
         specifier: 'catalog:'
-        version: 19.3.0(@types/react@19.3.0)
+        version: 19.3.0(@types/react@19.3.2)
       '@types/react-file-icon':
         specifier: ^1.0.5
         version: 1.0.5
@@ -1158,8 +1158,8 @@ importers:
         specifier: ^31.0.1
         version: 31.0.1(@noble/hashes@2.4.0)
       lucide-react:
-        specifier: ^1.78.0
-        version: 1.78.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.80.0
+        version: 1.80.0(@types/react@19.3.2)(react@19.3.1)
       react:
         specifier: 'catalog:'
         version: 19.3.1
@@ -1174,7 +1174,7 @@ importers:
         version: 4.3.5
       tsc-alias:
         specifier: 'catalog:'
-        version: 1.9.10
+        version: 1.9.11
       tsup:
         specifier: 'catalog:'
         version: 9.0.0(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -1186,7 +1186,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   tooling/eslint-config:
     dependencies:
@@ -1198,7 +1198,7 @@ importers:
         version: 16.4.6(eslint@10.15.0(jiti@2.7.0))
       '@vitest/eslint-plugin':
         specifier: 'catalog:'
-        version: 1.6.28(@typescript-eslint/eslint-plugin@8.74.0(@typescript-eslint/parser@8.74.0(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0))(vitest@5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))
+        version: 1.6.28(@typescript-eslint/eslint-plugin@8.74.0(@typescript-eslint/parser@8.74.0(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0))(vitest@5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))
       eslint-config-prettier:
         specifier: 'catalog:'
         version: 10.1.8(eslint@10.15.0(jiti@2.7.0))
@@ -1245,7 +1245,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -1272,11 +1272,11 @@ importers:
     dependencies:
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
-        version: 26.6.6
+        version: 26.6.10
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -1296,72 +1296,72 @@ packages:
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
     engines: {node: '>=10'}
 
-  '@aws-sdk/checksums@3.1002.6':
-    resolution: {integrity: sha512-OgxgE64MkHNGtt7YJc2Q+d1maGnYcEkCw5r+UO7cM78iVzyMhXFVMgm5un1FZzk4XB8lv436zYduIWLH9ibdBg==}
+  '@aws-sdk/checksums@3.1002.7':
+    resolution: {integrity: sha512-J2L1/AdkQOyAEt440r+U4vdh3UcyDk+ybwGd0hWLTNCbS+t2TykGcp3/tNK2H8zHjIzsrsF2B/5YiGCt5tl5yA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-s3@3.1176.0':
-    resolution: {integrity: sha512-ZD0T/34Rx8cyCF7KjT9DpKbeeUjPvdDTgcOzdn/NOHQIQ3GdMc7NIdfea3GUBI+rFaxvlLsQ4auV1eNR8pvkAQ==}
+  '@aws-sdk/client-s3@3.1177.0':
+    resolution: {integrity: sha512-Pe36iD8APFyzKtnPR4mxOFjThp+wv0Tg9aNW1jjGCGlmrYv6sz2ZY7ri4laUJZuR8sJC/jHi5atmqHLUIOy27g==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/core@3.981.1':
-    resolution: {integrity: sha512-sERtJaZjzvBdFMm2uei4k0WwPNUJtIrMBH9h0AEw7G0KkhIbnN3e5ZcwGjbVKClR+rrJCmyL1jhtXkseE7DU4A==}
+  '@aws-sdk/core@3.981.2':
+    resolution: {integrity: sha512-N3XKZdfa+Dcm7Kl8NJnaaHLx860Ts3QYHOraj/wuKOYHqqCApQBIKwzSxrpwZdwrqfbPt7BvJdYVhVMPpsRoGA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-env@3.972.85':
-    resolution: {integrity: sha512-IkIfFWmDbUyDEdNZpyAMmD3Givrm11I9UrqbgmLu1kUL/oh96QMqbfuHcbH08ErngZPDCQ2+7fW3U4r/W2k2Xg==}
+  '@aws-sdk/credential-provider-env@3.972.86':
+    resolution: {integrity: sha512-ZFIkIzLAiOLOakfrzUuOz938+AF+q4nc/MYINYwFlgBbl8CsI8ofJ8Ueh0/Pp7hXMJfpq10eJdnQ7aaE6kfikQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-http@3.972.87':
-    resolution: {integrity: sha512-NWQNmfmllENW1TOpMfhEZeRzEvbSaFsS5yrb2TZJ0wu+fVL5hyVSfGVLd8HTWb2UECD2bCw/kDXaA6dR1VJf3g==}
+  '@aws-sdk/credential-provider-http@3.972.88':
+    resolution: {integrity: sha512-92dpM3lwCyDjcDI3R+olUI2IG8R+qfUdnMQgxWZB4XM37P+N+oBaRd5xGc7uOH7FqMQY03XsrVKQeuWbPfIrKg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-ini@3.973.31':
-    resolution: {integrity: sha512-K6jkaKaAaVn9qAl/I14lzDHnYWHiESkxYLnmPYnJg3OfTRtWz39NerpidQIzqbMpoE/pmFqhgSJ+Sx/j1++8sA==}
+  '@aws-sdk/credential-provider-ini@3.973.32':
+    resolution: {integrity: sha512-MdIAf70d701Hj04Yo7AKqI1RfjTW5dFf+tEvUirYFMbs3NRHWiwqQj/C9wGFptZtmX+z/c57H3gQfzTt5Bsn8A==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-login@3.972.93':
-    resolution: {integrity: sha512-JofxFKJyNGLc9MmFMKy/vmjVwvNIWKNvHOf8rkXheH9x4+WJpIexhk1cqbmxWkodDYAodqGTiCEdBAVuiyH0iA==}
+  '@aws-sdk/credential-provider-login@3.972.94':
+    resolution: {integrity: sha512-sSq1PxdXT1kqR11/dRvE5AC2dEWMbYJCXzRU03Ulu4stu6vv08zju8uUNhVdqiIX+OrMIcEHHT1maLrUZDBGDA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-node@3.972.98':
-    resolution: {integrity: sha512-EpRL6YwSqvNlMjvRmwR2o3exV6DaETTdaWr1U7fZ456LQeK6ErOSluc6mWMY+OjkrBVFK4PgrU4NlERXTcgzKg==}
+  '@aws-sdk/credential-provider-node@3.972.99':
+    resolution: {integrity: sha512-AgS2qV8P9XmT4M44LfGcFtKbbt/yLgBydETKxPvqN9y7gMnKYv8GY+QfH7JsNvu6eQgDl600uAjvzC6K7ilkJQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-process@3.972.85':
-    resolution: {integrity: sha512-19kc3xj6woR3Nb2NWFxowRkCnuR43jMFcTLLLCqkzB/rPxxE1+NfHnAP5fpXgrI4xRRgDzvWeDREjhGrJxqfxA==}
+  '@aws-sdk/credential-provider-process@3.972.86':
+    resolution: {integrity: sha512-9x/+gtSDNxMQrRXgwIdwdNCVGxzUZtTZArjEeLfsn9xDvyXdsgs4my1g7JN5wKxT61ZLx4bKPREaDXnO8j7gkg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-sso@3.973.29':
-    resolution: {integrity: sha512-DJuKIs0bn5MZXc5uE1sf/R67YVC4ivFnL/dbKHukhdb5B6Fy80k8/BqiQykzXEqoT/qlSQaqYXU29hqVAYjcsg==}
+  '@aws-sdk/credential-provider-sso@3.973.30':
+    resolution: {integrity: sha512-sMvwUIaKQEeprbMT5LXrI6nhM1IUEBDRpJAydEkAMrI7brrsRl7pxnOAJ6nweg/Hn5pJOVS7JgieJIv6CvJ7Sw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-web-identity@3.972.91':
-    resolution: {integrity: sha512-4k4beWSkxhwKeGMVfgppv/LwCfCd1zAycWgqop7GHkdvdNK9TTkWn299LjUQOgDMfBX2Sv08t+J1mAWKHatttw==}
+  '@aws-sdk/credential-provider-web-identity@3.972.92':
+    resolution: {integrity: sha512-AKaUwpy1wPN3B/byFWuvL6v+Qk8Gm840InZJw/bA1A+ciCL3zkzBUyEgxdeghJPEe79VKLs6BvbME74MQa3YKg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/middleware-sdk-s3@3.972.91':
-    resolution: {integrity: sha512-L4rY9o4i85P/UJ8rGiHH4JYC/PnFwdAbCrXAs3g1UCxnyrnKboYm6blgx38xbOzVaZ1odpkrBRlMNMWI+aTfgg==}
+  '@aws-sdk/middleware-sdk-s3@3.972.92':
+    resolution: {integrity: sha512-HNN7mJUSPXxXpbyPwp3wx0dtIJSbUF3iHuoHVNHObMCN2/txIpg9JsJ/V2vroPGXSSqNImEaZkDfGJFqffSX6g==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/nested-clients@3.998.4':
-    resolution: {integrity: sha512-8Vzg3e9ia6eHQStnoSn17asRNWHrf/ozgQslLMGOdM5JifyV+AAk1+lgVXcQMmrzgRhR9phRUEFxAOg/cBh7MQ==}
+  '@aws-sdk/nested-clients@3.998.5':
+    resolution: {integrity: sha512-9w5mkwVLOuGqlJkPR1uhod6ZP+TOtaxrKtvK2pY9G/+FEx0e8wYRLIDeg30dYQjFDx27jHGSzEA+OaMqxeyTPg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/s3-presigned-post@3.1176.0':
-    resolution: {integrity: sha512-8PStxXacFNeFLRk8+Rjnrm8Mav0lnY5gvS8bs9f4+5K+1fLJNSwTSpYo25WmUGiWimCrdEqSHr+1DRbDSmbWIw==}
+  '@aws-sdk/s3-presigned-post@3.1177.0':
+    resolution: {integrity: sha512-3cZeR/0ISfjDOzy5UhC7hvOvBYNuI3p+s9GRVc6TPLpyfQaffQQmHjInCpr8PG4bl7ki7ZOY/pMbKJg0uxEAxg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/s3-request-presigner@3.1176.0':
-    resolution: {integrity: sha512-vpl9t65TJ3dXZpJtEcRPkca/JzadGFbzjDZvXg9fn/eE/TpBp66fOkLTnputHfdvdDKIOjzp2B8SjlZZhxsLiQ==}
+  '@aws-sdk/s3-request-presigner@3.1177.0':
+    resolution: {integrity: sha512-N4nCSjMGYBtkej+b6KBIi5/wrvos5tbsto6JFdVwKg8eLTT/Xsxx8KiomKgIaQ8x3eGbpCvk2O8qFgo/qCCr5Q==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/signature-v4-multi-region@3.996.52':
     resolution: {integrity: sha512-6W6SjGc8OXUhMzNxU1X922ghD+PP1XvzmCk5Scui0jaYsLezycMYR1RaLp5xTIOUrhTXyb4DnAbPr3fBgmdnzg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/token-providers@3.1175.0':
-    resolution: {integrity: sha512-irdg9wmKjTDumWoZeXIM3ecgfriHEEm0Q05bjiHwGNRCXXexz+5roMS28IzKWELI5QX/XZjL1vvvaIyptlCfAQ==}
+  '@aws-sdk/token-providers@3.1177.0':
+    resolution: {integrity: sha512-KFQ/2YqE7OIGNu05hys6y9ZUyoNxxLJVHM7NCvjfyjV0Mki0u0Euwjduj5M/HMurdbZJfBV0NjMNQQkGlJEQqg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/types@3.975.1':
@@ -2880,8 +2880,8 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node@26.6.6':
-    resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
+  '@types/node@26.6.10':
+    resolution: {integrity: sha512-WJuPHoGB8WNQuTksNF7SOQpnH02PXeDYz4iueWbBT6/hTWnShY5F3T/hoJA3fY9+uYReDZ7pyTKKx83jQa7aGg==}
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -2891,8 +2891,8 @@ packages:
   '@types/react-file-icon@1.0.5':
     resolution: {integrity: sha512-2QkghuxsQhwJ7J1QdkFxMEciPyh/H/fX/ShAHAje1iuwcOnCI3AwnMZ3LHYvNv/3XYArV5KCbMHOtqiHIYJg0Q==}
 
-  '@types/react@19.3.0':
-    resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
+  '@types/react@19.3.2':
+    resolution: {integrity: sha512-0QJbb58RxWJL3VAa5tvk7QhJamz0S+MpFL2xDuF/+THRR+kldyhPjRZ1iwvK45AEHZ1BVGS3otPsl7QlNVRizQ==}
 
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
@@ -3224,8 +3224,8 @@ packages:
       vitest:
         optional: true
 
-  '@vitest/mocker@5.1.1':
-    resolution: {integrity: sha512-b2OgTB4+3ImWIVafXKazJXwLKwQxUNnix6b3xUvUTMh7RyXlrtzoxfZr8aEz9zkHOMAS4K5lu3TvFWoiVeVTQg==}
+  '@vitest/mocker@5.1.2':
+    resolution: {integrity: sha512-UGc97wUIy0Ji2+9GxzHEJiOhiwkaukgE7VYcUNnjpX3sWnwQ8XogmNXX4WyOukxYgKb8Nh2XFa7KId0ZjpmVhQ==}
     peerDependencies:
       msw: ^2.4.9 || ^3.0.0
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -3235,8 +3235,8 @@ packages:
       vite:
         optional: true
 
-  '@vitest/spy@5.1.1':
-    resolution: {integrity: sha512-6K8C6alQG1/Yc8/ZI22iJS7JEsxPdVzqtqDq+/xM4Z0mGVykemMVjLhqMy/q6/IHYG3kKD8hKSwRen/ZdyI9vQ==}
+  '@vitest/spy@5.1.2':
+    resolution: {integrity: sha512-PQl0/3+p9GaY71+MHywN6oyHfLhVDD5kcbm7oNRldA2F0ExMU3S8RQdnpteJ9gFAdK5P6KCgE6LqCpUgy57KzA==}
 
   '@yuku-core/binding-android-arm64@0.19.0':
     resolution: {integrity: sha512-wdL2XmTiZixAOaHk9Z0JJZ8u9Qm8d333Zjpc6gaxXFX+UR5BlsfxZ7a2+2Rm71pamppsPYGUGFq2oVLbh6DISw==}
@@ -4324,8 +4324,8 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  fumadb@0.7.3:
-    resolution: {integrity: sha512-38SUsr/hLfnRO9W70FtbwNVdH0i28aTwGvD8PxCCc6OjbshGHgFZnLp7c0e2Ga1zy3Ofg7N7KNxhkNXifgsAig==}
+  fumadb@0.8.0:
+    resolution: {integrity: sha512-pF/5ojBYPfEDhW86Uypg/gHmhJ3xYxCWQkuTSIwsXr6Ej6SOouMT1reCdwp8buk3OZsDT09DeuKInSSlPTQc5Q==}
     peerDependencies:
       convex: ^1.25.0
       drizzle-orm: ^0.44.0 || ^0.45.0 || >=1.0.0-rc.1 <2.0.0
@@ -5044,8 +5044,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@1.78.0:
-    resolution: {integrity: sha512-61NFdT5ZfAY8xs3LWKkB78GVeuiCcjYFEXeHWxWP+mQhP+UWLGsA9hJZQPtIyXRDhOvT8kgmWwAIyH5L7RIhAA==}
+  lucide-react@1.80.0:
+    resolution: {integrity: sha512-f9cQkUMFp2ZrOek9FucpRqQVI67gT09clXcHs3yCvdhJnsK4RW4og/rqoC0YAHd6FV/GPkeiIR3Rdxr2pPRwHA==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -5053,8 +5053,8 @@ packages:
       '@types/react':
         optional: true
 
-  lucide@1.78.0:
-    resolution: {integrity: sha512-4lMWPv+OZGL1N2jkTNGjw86Rd3+4gyCdBHHXw+emfCvbQEojOPwPQo20y4SEUxy5ZBc3IDp3KC1vA7PPiuLbQA==}
+  lucide@1.80.0:
+    resolution: {integrity: sha512-3tsjW2GIkBNMYHlpnOUA4bP5jAh20iRHksM92tSsCzu24BktkK103HJfOqPybqJtDgYnY5NEf6LEyBiq0N+KjA==}
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -6251,8 +6251,8 @@ packages:
   ts-morph@26.0.0:
     resolution: {integrity: sha512-ztMO++owQnz8c/gIENcM9XfCEzgoGphTv+nKpYNM1bgsdOVC/jRZuEBf6N+mLLDNg68Kl+GgUZfOySaRiG1/Ug==}
 
-  tsc-alias@1.9.10:
-    resolution: {integrity: sha512-dsZvDB/wgAtRPFDHPYy7X7uqKFR4jJ7VB/2ndPGZQkIMQREz8q74fFsMZL4UmCbUztXhxoA1brKfqW7XzQeMqA==}
+  tsc-alias@1.9.11:
+    resolution: {integrity: sha512-UeNl29LWBH/Hi2eRY8vL3rreMvIlZnrbX2Gmyf8ybmYkwkX1OGlM50/YOvE09JGIA3heIokAJrzSG8KEghy/gA==}
     engines: {node: '>=16.20.2'}
     hasBin: true
 
@@ -6478,20 +6478,20 @@ packages:
       yaml:
         optional: true
 
-  vitest@5.1.1:
-    resolution: {integrity: sha512-trVmzUFOSraCZcI3uZIMD5FqBh4atFkC/XuJP/IU7qtyQay0FCs3Ia+0QiQ2JJwGyWG/xrcBoJNel2+O7kEZ0g==}
+  vitest@5.1.2:
+    resolution: {integrity: sha512-VIa2wXV208WraXUbzH+dQUrGcFpPuaiRA8HlhXS8R6/sy9cynw6OMqGj8fmAlH1hot7huTCtWUE14+FdXU3eLw==}
     engines: {node: ^22.12.0 || ^24.0.0 || >=26.0.0}
     hasBin: true
     peerDependencies:
       '@edge-runtime/vm': '*'
       '@opentelemetry/api': ^1.9.0
       '@types/node': ^22.0.0 || >=24.0.0
-      '@vitest/browser-playwright': 5.1.1
-      '@vitest/browser-preview': 5.1.1
+      '@vitest/browser-playwright': 5.1.2
+      '@vitest/browser-preview': 5.1.2
       '@vitest/browser-webdriverio': ^5.0.0-beta.5 || >=5.0.0
-      '@vitest/coverage-istanbul': 5.1.1
-      '@vitest/coverage-v8': 5.1.1
-      '@vitest/ui': 5.1.1
+      '@vitest/coverage-istanbul': 5.1.2
+      '@vitest/coverage-v8': 5.1.2
+      '@vitest/ui': 5.1.2
       happy-dom: '*'
       jsdom: '*'
       vite: ^6.4.0 || ^7.0.0 || ^8.0.0
@@ -6641,20 +6641,20 @@ snapshots:
 
   '@alloc/quick-lru@5.3.0': {}
 
-  '@aws-sdk/checksums@3.1002.6':
+  '@aws-sdk/checksums@3.1002.7':
     dependencies:
-      '@aws-sdk/core': 3.981.1
+      '@aws-sdk/core': 3.981.2
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
       '@smithy/types': 4.20.0
       tslib: 2.9.1
 
-  '@aws-sdk/client-s3@3.1176.0':
+  '@aws-sdk/client-s3@3.1177.0':
     dependencies:
-      '@aws-sdk/checksums': 3.1002.6
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/credential-provider-node': 3.972.98
-      '@aws-sdk/middleware-sdk-s3': 3.972.91
+      '@aws-sdk/checksums': 3.1002.7
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/credential-provider-node': 3.972.99
+      '@aws-sdk/middleware-sdk-s3': 3.972.92
       '@aws-sdk/signature-v4-multi-region': 3.996.52
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
@@ -6663,7 +6663,7 @@ snapshots:
       '@smithy/types': 4.20.0
       tslib: 2.9.1
 
-  '@aws-sdk/core@3.981.1':
+  '@aws-sdk/core@3.981.2':
     dependencies:
       '@aws-sdk/types': 3.975.1
       '@aws-sdk/xml-builder': 3.972.43
@@ -6674,103 +6674,17 @@ snapshots:
       bowser: 2.15.1
       tslib: 2.9.1
 
-  '@aws-sdk/credential-provider-env@3.972.85':
+  '@aws-sdk/credential-provider-env@3.972.86':
     dependencies:
-      '@aws-sdk/core': 3.981.1
+      '@aws-sdk/core': 3.981.2
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
       '@smithy/types': 4.20.0
       tslib: 2.9.1
 
-  '@aws-sdk/credential-provider-http@3.972.87':
+  '@aws-sdk/credential-provider-http@3.972.88':
     dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/types': 3.975.1
-      '@smithy/core': 3.41.1
-      '@smithy/fetch-http-handler': 5.8.1
-      '@smithy/node-http-handler': 4.14.2
-      '@smithy/types': 4.20.0
-      tslib: 2.9.1
-
-  '@aws-sdk/credential-provider-ini@3.973.31':
-    dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/credential-provider-env': 3.972.85
-      '@aws-sdk/credential-provider-http': 3.972.87
-      '@aws-sdk/credential-provider-login': 3.972.93
-      '@aws-sdk/credential-provider-process': 3.972.85
-      '@aws-sdk/credential-provider-sso': 3.973.29
-      '@aws-sdk/credential-provider-web-identity': 3.972.91
-      '@aws-sdk/nested-clients': 3.998.4
-      '@aws-sdk/types': 3.975.1
-      '@smithy/core': 3.41.1
-      '@smithy/credential-provider-imds': 4.5.2
-      '@smithy/types': 4.20.0
-      tslib: 2.9.1
-
-  '@aws-sdk/credential-provider-login@3.972.93':
-    dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/nested-clients': 3.998.4
-      '@aws-sdk/types': 3.975.1
-      '@smithy/core': 3.41.1
-      '@smithy/types': 4.20.0
-      tslib: 2.9.1
-
-  '@aws-sdk/credential-provider-node@3.972.98':
-    dependencies:
-      '@aws-sdk/credential-provider-env': 3.972.85
-      '@aws-sdk/credential-provider-http': 3.972.87
-      '@aws-sdk/credential-provider-ini': 3.973.31
-      '@aws-sdk/credential-provider-process': 3.972.85
-      '@aws-sdk/credential-provider-sso': 3.973.29
-      '@aws-sdk/credential-provider-web-identity': 3.972.91
-      '@aws-sdk/types': 3.975.1
-      '@smithy/core': 3.41.1
-      '@smithy/credential-provider-imds': 4.5.2
-      '@smithy/types': 4.20.0
-      tslib: 2.9.1
-
-  '@aws-sdk/credential-provider-process@3.972.85':
-    dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/types': 3.975.1
-      '@smithy/core': 3.41.1
-      '@smithy/types': 4.20.0
-      tslib: 2.9.1
-
-  '@aws-sdk/credential-provider-sso@3.973.29':
-    dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/nested-clients': 3.998.4
-      '@aws-sdk/token-providers': 3.1175.0
-      '@aws-sdk/types': 3.975.1
-      '@smithy/core': 3.41.1
-      '@smithy/types': 4.20.0
-      tslib: 2.9.1
-
-  '@aws-sdk/credential-provider-web-identity@3.972.91':
-    dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/nested-clients': 3.998.4
-      '@aws-sdk/types': 3.975.1
-      '@smithy/core': 3.41.1
-      '@smithy/types': 4.20.0
-      tslib: 2.9.1
-
-  '@aws-sdk/middleware-sdk-s3@3.972.91':
-    dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/signature-v4-multi-region': 3.996.52
-      '@aws-sdk/types': 3.975.1
-      '@smithy/core': 3.41.1
-      '@smithy/types': 4.20.0
-      tslib: 2.9.1
-
-  '@aws-sdk/nested-clients@3.998.4':
-    dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/signature-v4-multi-region': 3.996.52
+      '@aws-sdk/core': 3.981.2
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
       '@smithy/fetch-http-handler': 5.8.1
@@ -6778,19 +6692,105 @@ snapshots:
       '@smithy/types': 4.20.0
       tslib: 2.9.1
 
-  '@aws-sdk/s3-presigned-post@3.1176.0':
+  '@aws-sdk/credential-provider-ini@3.973.32':
     dependencies:
-      '@aws-sdk/client-s3': 3.1176.0
-      '@aws-sdk/core': 3.981.1
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/credential-provider-env': 3.972.86
+      '@aws-sdk/credential-provider-http': 3.972.88
+      '@aws-sdk/credential-provider-login': 3.972.94
+      '@aws-sdk/credential-provider-process': 3.972.86
+      '@aws-sdk/credential-provider-sso': 3.973.30
+      '@aws-sdk/credential-provider-web-identity': 3.972.92
+      '@aws-sdk/nested-clients': 3.998.5
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.41.1
+      '@smithy/credential-provider-imds': 4.5.2
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
+  '@aws-sdk/credential-provider-login@3.972.94':
+    dependencies:
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/nested-clients': 3.998.5
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.41.1
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
+  '@aws-sdk/credential-provider-node@3.972.99':
+    dependencies:
+      '@aws-sdk/credential-provider-env': 3.972.86
+      '@aws-sdk/credential-provider-http': 3.972.88
+      '@aws-sdk/credential-provider-ini': 3.973.32
+      '@aws-sdk/credential-provider-process': 3.972.86
+      '@aws-sdk/credential-provider-sso': 3.973.30
+      '@aws-sdk/credential-provider-web-identity': 3.972.92
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.41.1
+      '@smithy/credential-provider-imds': 4.5.2
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
+  '@aws-sdk/credential-provider-process@3.972.86':
+    dependencies:
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.41.1
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
+  '@aws-sdk/credential-provider-sso@3.973.30':
+    dependencies:
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/nested-clients': 3.998.5
+      '@aws-sdk/token-providers': 3.1177.0
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.41.1
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
+  '@aws-sdk/credential-provider-web-identity@3.972.92':
+    dependencies:
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/nested-clients': 3.998.5
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.41.1
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
+  '@aws-sdk/middleware-sdk-s3@3.972.92':
+    dependencies:
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/signature-v4-multi-region': 3.996.52
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.41.1
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
+  '@aws-sdk/nested-clients@3.998.5':
+    dependencies:
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/signature-v4-multi-region': 3.996.52
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.41.1
+      '@smithy/fetch-http-handler': 5.8.1
+      '@smithy/node-http-handler': 4.14.2
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
+  '@aws-sdk/s3-presigned-post@3.1177.0':
+    dependencies:
+      '@aws-sdk/client-s3': 3.1177.0
+      '@aws-sdk/core': 3.981.2
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
       '@smithy/signature-v4': 5.7.5
       '@smithy/types': 4.20.0
       tslib: 2.9.1
 
-  '@aws-sdk/s3-request-presigner@3.1176.0':
+  '@aws-sdk/s3-request-presigner@3.1177.0':
     dependencies:
-      '@aws-sdk/core': 3.981.1
+      '@aws-sdk/core': 3.981.2
       '@aws-sdk/signature-v4-multi-region': 3.996.52
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
@@ -6804,10 +6804,10 @@ snapshots:
       '@smithy/types': 4.20.0
       tslib: 2.9.1
 
-  '@aws-sdk/token-providers@3.1175.0':
+  '@aws-sdk/token-providers@3.1177.0':
     dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/nested-clients': 3.998.4
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/nested-clients': 3.998.5
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
       '@smithy/types': 4.20.0
@@ -7016,19 +7016,19 @@ snapshots:
       '@babel/helper-string-parser': 7.29.15
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@base-ui/react@1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@base-ui/react@1.9.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@babel/runtime': 8.1.3
-      '@base-ui/utils': 0.5.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@base-ui/utils': 0.5.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@floating-ui/react-dom': 2.1.9(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@floating-ui/utils': 0.2.12
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
       use-sync-external-store: 1.7.0(react@19.3.1)
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
-  '@base-ui/utils@0.5.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@base-ui/utils@0.5.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@babel/runtime': 8.1.3
       '@floating-ui/utils': 0.2.12
@@ -7037,7 +7037,7 @@ snapshots:
       reselect: 5.3.0
       use-sync-external-store: 1.7.0(react@19.3.1)
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
   '@better-auth/utils@0.5.1':
     dependencies:
@@ -7316,33 +7316,33 @@ snapshots:
   '@fuma-translate/binding-win32-x64-msvc@1.0.2':
     optional: true
 
-  '@fuma-translate/react@1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@fuma-translate/react@1.0.2(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
-  '@fumadocs/base-ui@16.19.7(@types/mdx@2.0.14)(@types/react@19.3.0)(fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)(takumi-js@2.22.1(csstype@3.2.4)(react@19.3.1))':
+  '@fumadocs/base-ui@16.19.7(@types/mdx@2.0.14)(@types/react@19.3.2)(fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.2)(lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)(takumi-js@2.22.1(csstype@3.2.4)(react@19.3.1))':
     dependencies:
-      '@base-ui/react': 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@fuma-translate/react': 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@base-ui/react': 1.9.0(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@fuma-translate/react': 1.0.2(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@fumadocs/tailwind': 0.1.5(tailwindcss@4.3.5)
       class-variance-authority: 0.7.1
       cn: 0.5.2
-      fumadocs-core: 16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
-      lucide-react: 1.78.0(@types/react@19.3.0)(react@19.3.1)
+      fumadocs-core: 16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.2)(lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      lucide-react: 1.80.0(@types/react@19.3.2)(react@19.3.1)
       motion: 14.14.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       next-themes: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
-      react-remove-scroll: 2.7.2(@types/react@19.3.0)(react@19.3.1)
+      react-remove-scroll: 2.7.2(@types/react@19.3.2)(react@19.3.1)
       scroll-into-view-if-needed: 3.2.1
       shiki: 4.6.0
     optionalDependencies:
       '@types/mdx': 2.0.14
-      '@types/react': 19.3.0
-      next: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@types/react': 19.3.2
+      next: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       takumi-js: 2.22.1(csstype@3.2.4)(react@19.3.1)
     transitivePeerDependencies:
       - '@date-fns/tz'
@@ -8015,15 +8015,15 @@ snapshots:
       picocolors: 1.1.1
       pretty-format: 27.5.1
 
-  '@testing-library/react@16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@testing-library/react@16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.2))(@types/react@19.3.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@babel/runtime': 7.29.15
       '@testing-library/dom': 10.4.2
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
     optionalDependencies:
-      '@types/react': 19.3.0
-      '@types/react-dom': 19.3.0(@types/react@19.3.0)
+      '@types/react': 19.3.2
+      '@types/react-dom': 19.3.0(@types/react@19.3.2)
 
   '@testing-library/user-event@14.6.13(@testing-library/dom@10.4.2)':
     dependencies:
@@ -8062,7 +8062,7 @@ snapshots:
 
   '@types/better-sqlite3@9.6.0':
     dependencies:
-      '@types/node': 26.6.6
+      '@types/node': 26.6.10
 
   '@types/chai@5.2.3':
     dependencies:
@@ -8103,19 +8103,19 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@26.6.6':
+  '@types/node@26.6.10':
     dependencies:
       undici-types: 8.9.0
 
-  '@types/react-dom@19.3.0(@types/react@19.3.0)':
+  '@types/react-dom@19.3.0(@types/react@19.3.2)':
     dependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
   '@types/react-file-icon@1.0.5':
     dependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
-  '@types/react@19.3.0':
+  '@types/react@19.3.2':
     dependencies:
       csstype: 3.2.4
 
@@ -8349,7 +8349,7 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.13.0':
     optional: true
 
-  '@vitest/eslint-plugin@1.6.28(@typescript-eslint/eslint-plugin@8.74.0(@typescript-eslint/parser@8.74.0(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0))(vitest@5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))':
+  '@vitest/eslint-plugin@1.6.28(@typescript-eslint/eslint-plugin@8.74.0(@typescript-eslint/parser@8.74.0(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0))(vitest@5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))':
     dependencies:
       '@typescript-eslint/scope-manager': 8.74.0
       '@typescript-eslint/utils': 8.74.0(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0))
@@ -8357,21 +8357,21 @@ snapshots:
     optionalDependencies:
       '@typescript-eslint/eslint-plugin': 8.74.0(@typescript-eslint/parser@8.74.0(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@2.7.0))
       typescript: '@typescript/typescript6@6.0.2'
-      vitest: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      vitest: 5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
     transitivePeerDependencies:
       - '@typescript/native'
       - supports-color
 
-  '@vitest/mocker@5.1.1(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
+  '@vitest/mocker@5.1.2(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
-      '@vitest/spy': 5.1.1
+      '@vitest/spy': 5.1.2
       estree-walker: 3.0.3
       magic-string: 1.4.5
     optionalDependencies:
-      vite: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
-  '@vitest/spy@5.1.1': {}
+  '@vitest/spy@5.1.2': {}
 
   '@yuku-core/binding-android-arm64@0.19.0':
     optional: true
@@ -9438,7 +9438,7 @@ snapshots:
       '@fuma-translate/binding-win32-arm64-msvc': 1.0.2
       '@fuma-translate/binding-win32-x64-msvc': 1.0.2
 
-  fumadb@0.7.3(drizzle-orm@1.0.0-rc.5(@electric-sql/pglite@0.6.0)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7)):
+  fumadb@0.8.0(drizzle-orm@1.0.0-rc.5(@electric-sql/pglite@0.6.0)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7)):
     dependencies:
       '@clack/prompts': 1.9.0
       '@paralleldrive/cuid2': 3.3.0
@@ -9449,7 +9449,7 @@ snapshots:
     optionalDependencies:
       drizzle-orm: 1.0.0-rc.5(@electric-sql/pglite@0.6.0)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7)
 
-  fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7):
+  fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.2)(lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7):
     dependencies:
       '@fumari/image-size': 0.1.1
       acorn: 8.19.0
@@ -9478,16 +9478,16 @@ snapshots:
       '@types/estree-jsx': 1.0.5
       '@types/hast': 3.0.5
       '@types/mdast': 4.0.4
-      '@types/react': 19.3.0
-      lucide-react: 1.78.0(@types/react@19.3.0)(react@19.3.1)
-      next: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@types/react': 19.3.2
+      lucide-react: 1.80.0(@types/react@19.3.2)(react@19.3.1)
+      next: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
       zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-mdx@15.6.4(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.3.0)(fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(rolldown@1.2.19)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)):
+  fumadocs-mdx@15.6.4(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.3.2)(fumadocs-core@16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.2)(lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(rolldown@1.2.19)(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       '@mdx-js/mdx': 3.1.1
       '@standard-schema/spec': 1.1.0
@@ -9496,7 +9496,7 @@ snapshots:
       chokidar: 6.0.0
       esbuild: 0.28.2
       estree-util-value-to-estree: 3.5.0
-      fumadocs-core: 16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      fumadocs-core: 16.19.7(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.2)(lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1))(next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       github-slugger: 2.0.0
       magic-string: 1.4.5
       mdast-util-from-markdown: 2.1.0
@@ -9515,11 +9515,11 @@ snapshots:
     optionalDependencies:
       '@types/mdast': 4.0.4
       '@types/mdx': 2.0.14
-      '@types/react': 19.3.0
-      next: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@types/react': 19.3.2
+      next: 16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
       rolldown: 1.2.19
-      vite: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -10109,13 +10109,13 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.78.0(@types/react@19.3.0)(react@19.3.1):
+  lucide-react@1.80.0(@types/react@19.3.2)(react@19.3.1):
     dependencies:
       react: 19.3.1
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
-  lucide@1.78.0: {}
+  lucide@1.80.0: {}
 
   lz-string@1.5.0: {}
 
@@ -10649,7 +10649,7 @@ snapshots:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
 
-  next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  next@16.4.6(@babel/core@7.29.13)(@types/node@26.6.10)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       '@next/env': 16.4.6
       '@swc/helpers': 0.5.23
@@ -10668,7 +10668,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.4.6
       '@next/swc-win32-arm64-msvc': 16.4.6
       '@next/swc-win32-x64-msvc': 16.4.6
-      sharp: 0.35.5(@types/node@26.6.6)
+      sharp: 0.35.5(@types/node@26.6.10)
     transitivePeerDependencies:
       - '@babel/core'
       - '@types/node'
@@ -10958,13 +10958,13 @@ snapshots:
       react: 19.3.1
       scheduler: 0.28.0
 
-  react-dropzone@20.2.1(@types/react@19.3.0)(react@19.3.1):
+  react-dropzone@20.2.1(@types/react@19.3.2)(react@19.3.1):
     dependencies:
       attr-accept: 4.0.1
       file-selector: 5.0.3
       react: 19.3.1
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
   react-file-icon@1.6.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
@@ -10977,32 +10977,32 @@ snapshots:
 
   react-is@17.0.2: {}
 
-  react-remove-scroll-bar@2.3.8(@types/react@19.3.0)(react@19.3.1):
+  react-remove-scroll-bar@2.3.8(@types/react@19.3.2)(react@19.3.1):
     dependencies:
       react: 19.3.1
-      react-style-singleton: 2.2.3(@types/react@19.3.0)(react@19.3.1)
+      react-style-singleton: 2.2.3(@types/react@19.3.2)(react@19.3.1)
       tslib: 2.9.1
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
-  react-remove-scroll@2.7.2(@types/react@19.3.0)(react@19.3.1):
+  react-remove-scroll@2.7.2(@types/react@19.3.2)(react@19.3.1):
     dependencies:
       react: 19.3.1
-      react-remove-scroll-bar: 2.3.8(@types/react@19.3.0)(react@19.3.1)
-      react-style-singleton: 2.2.3(@types/react@19.3.0)(react@19.3.1)
+      react-remove-scroll-bar: 2.3.8(@types/react@19.3.2)(react@19.3.1)
+      react-style-singleton: 2.2.3(@types/react@19.3.2)(react@19.3.1)
       tslib: 2.9.1
-      use-callback-ref: 1.3.3(@types/react@19.3.0)(react@19.3.1)
-      use-sidecar: 1.1.3(@types/react@19.3.0)(react@19.3.1)
+      use-callback-ref: 1.3.3(@types/react@19.3.2)(react@19.3.1)
+      use-sidecar: 1.1.3(@types/react@19.3.2)(react@19.3.1)
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
-  react-style-singleton@2.2.3(@types/react@19.3.0)(react@19.3.1):
+  react-style-singleton@2.2.3(@types/react@19.3.2)(react@19.3.1):
     dependencies:
       get-nonce: 1.0.1
       react: 19.3.1
       tslib: 2.9.1
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
   react@19.3.1: {}
 
@@ -11339,7 +11339,7 @@ snapshots:
       - babel-plugin-macros
       - supports-color
 
-  sharp@0.35.5(@types/node@26.6.6):
+  sharp@0.35.5(@types/node@26.6.10):
     dependencies:
       '@img/colour': 1.1.0
       detect-libc: 2.1.2
@@ -11370,7 +11370,7 @@ snapshots:
       '@img/sharp-win32-arm64': 0.35.5
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
-      '@types/node': 26.6.6
+      '@types/node': 26.6.10
     optional: true
 
   shebang-command@2.0.0:
@@ -11695,7 +11695,7 @@ snapshots:
       '@ts-morph/common': 0.27.0
       code-block-writer: 13.0.3
 
-  tsc-alias@1.9.10:
+  tsc-alias@1.9.11:
     dependencies:
       chokidar: 3.6.0
       commander: 9.5.0
@@ -11929,20 +11929,20 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  use-callback-ref@1.3.3(@types/react@19.3.0)(react@19.3.1):
+  use-callback-ref@1.3.3(@types/react@19.3.2)(react@19.3.1):
     dependencies:
       react: 19.3.1
       tslib: 2.9.1
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
-  use-sidecar@1.1.3(@types/react@19.3.0)(react@19.3.1):
+  use-sidecar@1.1.3(@types/react@19.3.2)(react@19.3.1):
     dependencies:
       detect-node-es: 1.1.0
       react: 19.3.1
       tslib: 2.9.1
     optionalDependencies:
-      '@types/react': 19.3.0
+      '@types/react': 19.3.2
 
   use-sync-external-store@1.7.0(react@19.3.1):
     dependencies:
@@ -11962,7 +11962,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.4
 
-  vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1):
+  vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -11970,17 +11970,17 @@ snapshots:
       rolldown: 1.2.19
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 26.6.6
+      '@types/node': 26.6.10
       esbuild: 0.28.2
       fsevents: 2.3.3
       jiti: 2.7.0
       tsx: 4.23.15
       yaml: 2.9.1
 
-  vitest@5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)):
+  vitest@5.1.2(@types/node@26.6.10)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.1.1(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      '@vitest/mocker': 5.1.2(vite@8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -11991,10 +11991,10 @@ snapshots:
       tinybench: 6.2.5
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      vite: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.3.8(@types/node@26.6.10)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
       why-is-node-running: 3.2.1
     optionalDependencies:
-      '@types/node': 26.6.6
+      '@types/node': 26.6.10
       jsdom: 31.0.1(@noble/hashes@2.4.0)
     transitivePeerDependencies:
       - msw

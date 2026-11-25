@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { DimahS3Db, migrate as migrateDb } from "@dimah-s3/db";
 import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
 import { kyselyAdapter } from "@dimah-s3/db/adapters/kysely";
+import { generateSchema } from "@dimah-s3/db/cli";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
@@ -31,7 +32,39 @@ async function importGenerated(name: string, code: string) {
   };
 }
 
+describe("Drizzle schema of share", () => {
+  // `integer` columns: before FumaDB 0.8, MySQL's import of `integer` failed.
+  it.each(["sqlite", "postgresql", "mysql"] as const)(
+    "loads on %s",
+    async (provider) => {
+      const { code } = DimahS3Share.client(
+        drizzleAdapter({ db: undefined, provider }),
+      ).generateSchema("latest");
+      const schema = await importGenerated(`share-${provider}`, code);
+      expect(Object.keys(schema).sort()).toEqual([
+        "private_dimah_s3_share_settings",
+        "relations",
+        "shareLink",
+      ]);
+    },
+  );
+});
+
 describe("Drizzle with db and share on one instance", () => {
+  it("generates both into one file that declares a shared PostgreSQL schema once", () => {
+    const adapter = drizzleAdapter({ db: undefined, provider: "postgresql" });
+    const { code } = generateSchema([
+      DimahS3Db.names.schema("storage").client(adapter),
+      DimahS3Share.names.schema("storage").client(adapter),
+    ]);
+    // drizzle-kit refuses a schema declared twice, and needs it exported.
+    expect(code.match(/pgSchema\("storage"\)/g)).toHaveLength(1);
+    expect(code).toContain('export const storageSchema = pgSchema("storage")');
+    expect(code).toContain('storageSchema.table("storage_object"');
+    expect(code).toContain('storageSchema.table("share_link"');
+    expect(code.match(/export const relations =/g)).toHaveLength(1);
+  });
+
   it("reads both schemas through merged relations", async () => {
     const generate = (library: typeof DimahS3Db | typeof DimahS3Share) =>
       library

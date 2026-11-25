@@ -509,8 +509,17 @@ export function createDatabaseEndpoints<
           ...folderTarget(current),
         });
         const recursive = ctx.query.recursive === true;
-        await folders.delete(peeked.scope, current.id, { recursive });
-        await hooks.onFolderDeleted?.({ ...scope, folder: current, recursive });
+        const removed = await folders.delete(peeked.scope, current.id, {
+          recursive,
+        });
+        // A concurrent delete that removed it first ran the hook.
+        if (removed) {
+          await hooks.onFolderDeleted?.({
+            ...scope,
+            folder: current,
+            recursive,
+          });
+        }
         return { id: current.id };
       },
     ),

@@ -45,9 +45,9 @@ const shareLink = table("share_link", {
   downloadCount: column("download_count", "integer").defaultTo(0),
   viewCount: column("view_count", "integer").defaultTo(0),
   /**
-   * Token of the last compare-and-set write: a counted download or a
-   * revoke. The writer reads the row back and sees its own token only when
-   * its write landed, so it can tell its change from a concurrent one.
+   * No longer written: a write tells whether it landed from the rows it
+   * matched. Earlier 2.x versions wrote a token here and read it back. The
+   * column stays until a major release changes the share schema.
    */
   writeToken: string("write_token", 32).nullable(),
   lastAccessedAt: column("last_accessed_at", "timestamp").nullable(),

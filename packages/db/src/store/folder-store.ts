@@ -116,9 +116,11 @@ export type StorageFolderStore = {
     input: { name?: string; parentId?: string | null },
   ) => Promise<StorageFolder>;
   /**
-   * Removes an empty folder. Removing a missing folder does nothing. With
-   * `recursive`, the folders below it go too, deepest first, as long as
-   * none of them holds an object; the ones already removed stay removed.
+   * Removes an empty folder. Resolves `true` when this call removed it, and
+   * `false` when it was already gone, also when a concurrent delete removed
+   * it first. With `recursive`, the folders below it go too, deepest first,
+   * as long as none of them holds an object; the ones already removed stay
+   * removed.
    * @throws `FOLDER_NOT_EMPTY` when it has child folders (without
    * `recursive`), or when it or a folder below it has active or pending
    * objects.
@@ -127,7 +129,7 @@ export type StorageFolderStore = {
     scope: string,
     id: string,
     options?: { recursive?: boolean },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   /**
    * Puts `folder` back when a concurrent delete removed it, with the same
    * id. An object or a subfolder written in between still points at that id.
@@ -310,16 +312,17 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
   };
 
   /**
-   * Removes `folder` when it holds nothing.
+   * Removes `folder` when it holds nothing. `true` when this call removed
+   * the row, `false` when another call removed it first.
    * @throws `FOLDER_NOT_EMPTY` when it has a child folder or a live object.
    */
-  const deleteEmpty = async (folder: StorageFolder) => {
+  const deleteEmpty = async (folder: StorageFolder): Promise<boolean> => {
     const { scope, id } = folder;
     if ((await countContents(scope, id)) > 0) {
       throw s3Error("FOLDER_NOT_EMPTY");
     }
     const orm = await getOrm();
-    await orm.deleteMany("storageFolder", {
+    const { count } = await orm.deleteMany("storageFolder", {
       where: (b) => b.and(b("scope", "=", scope), b("id", "=", id)),
     });
     // An upload or a new subfolder may have landed between the count and
@@ -329,6 +332,7 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
       await retain(folder);
       throw s3Error("FOLDER_NOT_EMPTY");
     }
+    return count > 0;
   };
 
   /** Walks below a folder still in flight, so one listing's lookups share one. */
@@ -618,14 +622,14 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
 
     async delete(scope, id, options = {}) {
       const folder = await find(scope, id);
-      if (!folder) return;
+      if (!folder) return false;
       if (options.recursive) {
         // Parents come before their children, so the reverse empties each
         // folder before the one that holds it.
         const below = await subtree(await getOrm(), scope, id);
         for (const child of below.reverse()) await deleteEmpty(child);
       }
-      await deleteEmpty(folder);
+      return deleteEmpty(folder);
     },
 
     retain,

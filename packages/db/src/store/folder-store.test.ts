@@ -520,6 +520,16 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
       );
     });
 
+    it("tells the call that removed a folder from one that found it gone", async () => {
+      const folder = await nest("a");
+      const results = await Promise.all([
+        folders().delete("user:1", folder.id),
+        folders().delete("user:1", folder.id),
+      ]);
+      expect(results.filter(Boolean)).toHaveLength(1);
+      await expect(folders().delete("user:1", folder.id)).resolves.toBe(false);
+    });
+
     it("restores the same id when an object lands during the delete", async () => {
       const folder = await nest("a");
       const store = folders();
@@ -531,10 +541,9 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
           const original = store.delete;
           store.delete = real;
           await insertObject(client(), { key: "k", folderId: id });
-          await original(scope, id);
-          return;
+          return original(scope, id);
         }
-        await real(scope, id);
+        return real(scope, id);
       };
       await expect(store.delete("user:1", folder.id)).rejects.toMatchObject({
         code: "FOLDER_NOT_EMPTY",
